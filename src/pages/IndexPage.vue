@@ -4,64 +4,52 @@
     <q-icon name="logout" />
     <q-tooltip anchor="top middle" self="bottom middle"> Logout </q-tooltip>
   </q-btn>
+
+  <q-btn to="/addNewClass">Create new class</q-btn>
+
+  <ClassListComponent></ClassListComponent>
 </template>
 
 <script>
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { auth, db } from '../key/configKey.js' // Adjust the import path as necessary
-import { doc, getDoc } from 'firebase/firestore'
+import AuthServices from 'src/services/AuthServices.js'
+import ClassListComponent from 'src/components/ClassListComponent.vue'
+import { useUserStore } from 'src/stores/userStore.js'
 
 export default {
   name: 'IndexPage',
-  data() {
-    return {
-      teacherName: '', // Initialize teacherName
-    }
+  computed: {
+    // Access the userInfo from the store
+    teacherName() {
+      const userStore = useUserStore()
+      return userStore.userInfo?.name || '' // Fallback to an empty string if userInfo is null
+    },
+  },
+  components: {
+    ClassListComponent,
   },
   methods: {
-    async loadUserInfo() {
-      const user = auth.currentUser
-      if (user) {
-        console.log('User is signed in:', user.uid)
-        // User is signed in, you can access user information here
-        const docRef = doc(db, 'teachers', user.uid)
-        const docSnap = await getDoc(docRef)
-
-        if (docSnap.exists()) {
-          const data = docSnap.data()
-          this.teacherName = data.name // Set the teacherName from Firestore
-          console.log('Teacher name:', this.teacherName)
-        } else {
-          console.log('No such document!')
-        }
-      }
-    },
-
     async handleSignOut() {
-      try {
-        await signOut(auth)
-        console.log('User signed out.')
-        this.$router.push({ name: 'LoginPage' }) // Redirect to login page
-      } catch (error) {
-        console.error('Error signing out:', error.message)
-      }
+      const userStore = useUserStore()
+      AuthServices.handleSignOut().then(() => {
+        userStore.clearUserInfo() // Clear user info from the store
+        this.$router.push({ name: 'LoginPage' }) // Redirect to LoginPage
+      })
     },
   },
-  beforeMount() {
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log('User is signed in:', user.uid)
-        // User is signed in, you can access user information here
-        this.loadUserInfo()
-        // Optionally, you can also call this.loadUserInfo() here
-        // to load user info immediately after authentication state changes
-        // this.loadUserInfo()
-      } else {
-        console.log('No user is signed in.')
-        // No user is signed in, redirect to login page
-        this.$router.push({ name: 'LoginPage' })
+  async beforeMount() {
+    const userStore = useUserStore()
+    if (!userStore.userInfo) {
+      try {
+        await userStore.loadUserInfo() // Attempt to load user info
+        if (!userStore.userInfo) {
+          console.warn('No user info found, redirecting to LoginPage.')
+          this.$router.push({ name: 'LoginPage' }) // Redirect if still no user info
+        }
+      } catch (error) {
+        console.error('Error loading user info:', error)
+        this.$router.push({ name: 'LoginPage' }) // Redirect on error
       }
-    })
+    }
   },
 }
 </script>
