@@ -1,0 +1,76 @@
+<template>
+  <q-dialog v-model="isOpen">
+    <q-card>
+      <q-card-section>
+        <div class="text-h6">Save Lesson Info</div>
+      </q-card-section>
+
+      <q-form @submit.prevent="submitLesson">
+        <q-card-section>
+          <q-input v-model="lesson.book" label="Book" />
+          <q-input v-model.number="lesson.lessonNumber" label="Lesson #" />
+          <q-input v-model="lesson.grade" label="Grade" />
+          <q-input v-model="lesson.notes" label="Notes" type="textarea" />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn type="submit" label="Save" color="primary" />
+        </q-card-actions>
+      </q-form>
+    </q-card>
+  </q-dialog>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue'
+import StudentServices from '../services/StudentServices'
+
+const props = defineProps({
+  modelValue: Boolean,
+  studentId: String,
+})
+
+const emit = defineEmits(['update:modelValue', 'lessonSaved'])
+
+const isOpen = ref(props.modelValue)
+const lesson = ref({
+  book: '',
+  lessonNumber: null,
+  grade: '',
+  notes: '',
+})
+
+// Watch for dialog open and fetch student data
+watch(
+  () => props.modelValue,
+  async (val) => {
+    isOpen.value = val
+    if (val && props.studentId) {
+      const studentDoc = await StudentServices.fetchStudentById(props.studentId)
+      if (studentDoc) {
+        lesson.value.book = studentDoc.currentBook || ''
+        lesson.value.lessonNumber = studentDoc.currentLesson || 1
+      }
+    }
+  },
+)
+
+watch(isOpen, (val) => {
+  emit('update:modelValue', val)
+})
+
+const submitLesson = async () => {
+  if (!props.studentId) return
+
+  // Save lesson info
+  await StudentServices.saveLesson(props.studentId, lesson.value)
+
+  // Update student's current lesson to next one
+  const nextLesson = (lesson.value.lessonNumber || 1) + 1
+  await StudentServices.updateStudentCurrentLesson(props.studentId, nextLesson)
+
+  emit('lessonSaved')
+  isOpen.value = false
+}
+</script>
