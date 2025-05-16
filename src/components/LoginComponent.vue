@@ -18,13 +18,9 @@
       </div>
       <div class="form-actions">
         <button type="button" @click="resetPassword">Reset Password</button>
-        <button type="submit" @click="handlePasswordAuth">Login</button>
+        <button type="submit" @click="handleLogin">Login</button>
       </div>
     </form>
-    <div class="social-login">
-      <h3>Or login with:</h3>
-      <button type="button" @click="handleGoogleLogin">Google</button>
-    </div>
 
     <!-- Quasar Dialog -->
     <q-dialog v-model="showDialog" backdrop-filter="hue-rotate(120deg) blur(5px)">
@@ -42,14 +38,8 @@
 </template>
 
 <script>
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  getAuth,
-} from 'firebase/auth'
-import { auth, db } from '../key/configKey.js' // Adjust the import path as necessary
-import { doc, getDoc } from 'firebase/firestore'
+import AuthServices from 'src/services/AuthServices.js'
+import { useUserStore } from 'src/stores/userStore.js'
 
 export default {
   name: 'LoginComponent',
@@ -62,53 +52,20 @@ export default {
     }
   },
   methods: {
-    async handlePasswordAuth() {
+    async handleLogin() {
+      const userStore = useUserStore()
       try {
-        console.log('Email:', this.email)
-        console.log('Password:', this.password)
-        const authInstance = getAuth()
-        const userCredential = await signInWithEmailAndPassword(
-          authInstance,
-          this.email,
-          this.password,
-        )
-        const user = userCredential.user
-
-        console.log('User signed in:', user.uid)
-        this.dialogMessage = `Welcome, ${user.email}! You have signed in successfully.`
-        this.showDialog = true
-        // Redirect or handle successful login here
-        console.log('Loading user info...')
-        const docRef = doc(db, 'teachers', user.uid)
-        const docSnap = await getDoc(docRef)
-
-        if (docSnap.exists()) {
-          const data = docSnap.data()
-          console.log('Teacher name:', data.name)
-        } else {
-          console.log('No such document!')
-        }
-        this.$router.push({ name: 'IndexPage' }) // Adjust the route as necessary
+        await AuthServices.handlePasswordAuthentication(this.email, this.password) // Sign in the user
+        await userStore.loadUserInfo() // Load user info into the store
+        this.$router.push({ name: 'IndexPage' }) // Navigate to IndexPage
       } catch (error) {
-        console.error('Error signing in:', error.message)
-        this.dialogMessage = `Login failed: ${error.message}`
+        this.dialogMessage = 'Login failed: ' + error.message
         this.showDialog = true
       }
     },
     resetPassword() {
       // Handle reset password logic here
       alert('Reset password functionality not implemented yet.')
-    },
-    async handleGoogleLogin() {
-      try {
-        const provider = new GoogleAuthProvider()
-        const result = await signInWithPopup(auth, provider)
-        console.log('Google login successful:', result.user)
-        // Redirect or handle successful login here
-      } catch (error) {
-        console.error('Error with Google login:', error.message)
-        alert('Google login failed: ' + error.message)
-      }
     },
   },
 }
