@@ -17,14 +17,29 @@ const StudentServices = {
     return docSnap.exists() ? docSnap.data() : null
   },
 
-  async saveLesson(studentId, lessonInfo) {
+  async saveLessonForStudent(studentId, lessonInfo) {
     const lessonId = `${lessonInfo.book}_${lessonInfo.lessonNumber}`
+    const studentLessonRef = doc(db, 'students', studentId, 'lessons', lessonId)
 
-    const lessonRef = doc(db, 'students', studentId, 'lessons', lessonId)
-
-    await setDoc(lessonRef, {
+    const lessonData = {
       ...lessonInfo,
       completedAt: serverTimestamp(),
+    }
+
+    // Write to student's lessons subcollection
+    await setDoc(studentLessonRef, lessonData)
+
+    // === Create a meaningful ID for lessonsCompleted ===
+    const today = new Date()
+    const formattedDate = today.toISOString().split('T')[0] // YYYY-MM-DD
+    const globalLessonId = `${studentId}_${lessonId}_${formattedDate}`
+
+    const globalRef = doc(db, 'lessonsCompleted', globalLessonId)
+    await setDoc(globalRef, {
+      ...lessonData,
+      studentId,
+      classId: lessonInfo.classId || '',
+      date: formattedDate,
     })
   },
 
@@ -44,6 +59,25 @@ const StudentServices = {
     })
 
     return nextLesson
+  },
+
+  async markStudentAbsent(studentId, classId) {
+    const today = new Date().toISOString().split('T')[0]
+    const docId = `${studentId}_${classId}_${today}`
+    const ref = doc(db, 'absences', docId)
+
+    const exists = await getDoc(ref)
+    if (exists.exists()) {
+      throw new Error('Absence already recorded for today.')
+    }
+
+    await setDoc(ref, {
+      studentId,
+      classId,
+      date: today,
+      reason: 'Absent',
+      markedAt: serverTimestamp(),
+    })
   },
 }
 
