@@ -29,6 +29,8 @@ import StudentServices from '../services/StudentServices'
 const props = defineProps({
   modelValue: Boolean,
   studentId: String,
+  studentName: String,
+  classId: String,
 })
 
 const emit = defineEmits(['update:modelValue', 'lessonSaved'])
@@ -64,13 +66,18 @@ const submitLesson = async () => {
   if (!props.studentId) return
 
   // Save lesson info
-  await StudentServices.saveLesson(props.studentId, lesson.value)
+  await StudentServices.saveLessonForStudent(props.studentId, {
+    ...lesson.value,
+    studentName: props.studentName,
+    classId: props.classId,
+  })
 
   // Update student's current lesson to next one
   const nextLesson = (lesson.value.lessonNumber || 1) + 1
   await StudentServices.updateStudentCurrentLesson(props.studentId, nextLesson)
 
   emit('lessonSaved')
+
   isOpen.value = false
 }
 </script>
