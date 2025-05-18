@@ -9,6 +9,7 @@ yarn
 # or
 npm install
 npm install firebase
+npm install dayjs
 ```
 
 ### Start the app in development mode (hot-code reloading, error reporting, etc.)
