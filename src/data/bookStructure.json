@@ -1,0 +1,8 @@
+{
+  "W2": { "start": 1, "end": 60, "blockSize": 6 },
+  "W4": { "start": 61, "end": 120, "blockSize": 6 },
+  "W6": { "start": 121, "end": 180, "blockSize": 6 },
+  "W8": { "start": 181, "end": 240, "blockSize": 6 },
+  "W10": { "start": 241, "end": 300, "blockSize": 6 },
+  "W12": { "start": 301, "end": 360, "blockSize": 6 }
+}
