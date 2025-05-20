@@ -10,7 +10,12 @@
           <div>
             {{ student.currentLesson }}
           </div>
-          <div v-if="student.currentLesson !== null">
+          <div
+            v-if="
+              getNextLessonLabel(student.currentLesson, student.book) !== null &&
+              student.currentLesson !== null
+            "
+          >
             / {{ getNextLessonLabel(student.currentLesson, student.book) }}
           </div>
         </q-item-label>
@@ -34,6 +39,8 @@
       </q-card>
     </q-dialog>
   </div>
+
+  <q-btn to="/">To class list</q-btn>
 
   <!-- Import the SaveLessonForm component -->
   <SaveLessonFormComponent
@@ -109,7 +116,7 @@ const getNextLessonLabel = (currentLesson, book) => {
 
   const index = bookLessons.indexOf(String(currentLesson))
   const next = bookLessons[index + 1]
-  return next ?? '✓' // return checkmark if at end
+  return next
 }
 
 onMounted(async () => {
