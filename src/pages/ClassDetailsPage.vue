@@ -4,9 +4,17 @@
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
-          {{ student.name }} - {{ student.currentLesson }} /
-          {{ getNextLessonLabel(student.currentLesson, student.book) }}
+          {{ student.name }}
         </q-item-section>
+        <q-item-label>
+          <div>
+            {{ student.currentLesson }}
+          </div>
+          <div v-if="student.currentLesson !== null">
+            / {{ getNextLessonLabel(student.currentLesson, student.book) }}
+          </div>
+        </q-item-label>
+        <q-icon v-if="student.currentLesson == null" name="check_circle" color="green" size="md" />
         <q-item-section side> </q-item-section>
         <q-btn label="Edit Lesson" @click="openLessonForm(student.uid)" />
         <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
