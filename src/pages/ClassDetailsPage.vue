@@ -3,19 +3,28 @@
     <h5>Class: {{ classInfo?.classDay }} at {{ classInfo?.schedule }}</h5>
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
-        <q-item-section
-          >{{ student.name }} - {{ student.currentLesson }}/{{
-            student.currentLesson + 1
-          }}</q-item-section
-        >
-        <q-item-section side>
-          <q-icon v-if="statusMap[student.uid] === 'lesson'" name="check_circle" color="green" />
-          <q-icon v-else-if="statusMap[student.uid] === 'absence'" name="cancel" color="red" />
+        <q-item-section>
+          {{ student.name }} - {{ student.currentLesson }} /
+          {{ getNextLessonLabel(student.currentLesson, student.book) }}
         </q-item-section>
+        <q-item-section side> </q-item-section>
         <q-btn label="Edit Lesson" @click="openLessonForm(student.uid)" />
         <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
       </q-item>
     </q-list>
+    <q-dialog v-model="lessonDialog" seamless position="bottom">
+      <q-card style="width: 350px">
+        <q-card-section class="row items-center no-wrap">
+          <div>
+            <div>Nota adicionada com sucesso!</div>
+          </div>
+
+          <q-space />
+
+          <q-btn flat round icon="close" v-close-popup />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 
   <!-- Import the SaveLessonForm component -->
@@ -31,16 +40,16 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import StudentServices from '../services/StudentServices.js'
 import SaveLessonFormComponent from 'src/components/SaveLessonFormComponent.vue'
-import dayjs from 'dayjs'
+import BookStructure from '../data/bookStructure.json'
 
 const route = useRoute()
 const classId = route.params.id
 
-const statusMap = ref({})
+const lessonDialog = ref(false)
 const classInfo = ref(null)
 const students = ref([])
 const selectedStudentId = ref(null)
@@ -58,18 +67,18 @@ const openLessonForm = (studentId) => {
 
 const handleLessonSaved = async () => {
   console.log('Lesson saved!')
-  // Optional: refresh student data if needed
+  lessonDialog.value = true
+  setTimeout(() => {
+    lessonDialog.value = false
+  }, 2000)
+  // refresh student data
   fetchStudentList()
-  const studentIds = students.value.map((s) => s.uid)
-  statusMap.value = await fetchStudentStatusForToday(studentIds)
 }
 
 const markAbsent = async (studentId) => {
   try {
     await StudentServices.markStudentAbsent(studentId, classId)
     console.log('Student marked absent!')
-    const studentIds = students.value.map((s) => s.uid)
-    statusMap.value = await fetchStudentStatusForToday(studentIds)
   } catch (err) {
     console.error('Failed to mark absence:', err.message)
   }
@@ -86,46 +95,16 @@ const fetchStudentList = async () => {
   }
 }
 
-const fetchStudentStatusForToday = async (studentIds) => {
-  const today = dayjs().format('YYYY-MM-DD')
+const getNextLessonLabel = (currentLesson, book) => {
+  const bookLessons = BookStructure[book]
+  if (!bookLessons) return currentLesson
 
-  const statusMap = {}
-
-  // 1. Fetch completed lessons
-  const lessonsQuery = query(
-    collection(db, 'lessonsCompleted'),
-    where('classId', '==', classId),
-    where('date', '==', today),
-  )
-
-  const lessonSnapshots = await getDocs(lessonsQuery)
-  lessonSnapshots.forEach((doc) => {
-    const data = doc.data()
-    if (studentIds.includes(data.studentId)) {
-      statusMap[data.studentId] = 'lesson'
-    }
-  })
-
-  // 2. Fetch absences
-  const absenceIds = studentIds.map((id) => `${id}_${classId}_${today}`)
-  const absencePromises = absenceIds.map((absenceId) =>
-    getDocs(query(collection(db, 'absences'), where('__name__', '==', absenceId))),
-  )
-
-  const absenceSnapshots = await Promise.all(absencePromises)
-  absenceSnapshots.forEach((snapshot) => {
-    snapshot.forEach((doc) => {
-      const studentId = doc.id.split('_')[0]
-      statusMap[studentId] = 'absence'
-    })
-  })
-
-  return statusMap
+  const index = bookLessons.indexOf(String(currentLesson))
+  const next = bookLessons[index + 1]
+  return next ?? '✓' // return checkmark if at end
 }
 
 onMounted(async () => {
   await fetchStudentList()
-  const studentIds = students.value.map((s) => s.uid)
-  statusMap.value = await fetchStudentStatusForToday(studentIds)
 })
 </script>
