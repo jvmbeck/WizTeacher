@@ -5,7 +5,7 @@
         <div class="text-h6">Save Lesson Info</div>
       </q-card-section>
 
-      <q-form @submit.prevent="submitLesson">
+      <q-form v-if="!endOfBook" @submit.prevent="submitLesson">
         <q-card-section>
           <q-input v-model="lesson.book" label="Book" />
           <q-input v-model="lesson.lessonNumber" label="Lesson #" />
@@ -18,6 +18,9 @@
           <q-btn type="submit" label="Save" color="primary" />
         </q-card-actions>
       </q-form>
+      <div v-else class="q-pa-md text-red text-bold">
+        This book has ended. Please check the student's homework before assigning a new book.
+      </div>
     </q-card>
   </q-dialog>
 </template>
@@ -36,6 +39,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'lessonSaved'])
 
+const endOfBook = ref(false)
 const isOpen = ref(props.modelValue)
 const lesson = ref({
   book: '',
@@ -49,15 +53,42 @@ watch(
   () => props.modelValue,
   async (val) => {
     isOpen.value = val
+
     if (val && props.studentId) {
       const studentDoc = await StudentServices.fetchStudentById(props.studentId)
-      if (studentDoc) {
-        const book = studentDoc.book || ''
-        const currentLesson = studentDoc.currentLesson ?? books[book]?.[0]
+      if (!studentDoc) return
 
-        lesson.value.book = book
-        lesson.value.lessonNumber = currentLesson
+      const book = studentDoc.book || ''
+      const bookLessons = books[book]
+
+      if (!bookLessons) {
+        console.warn(`Book "${book}" not found in books structure`)
+        lesson.value = null
+        endOfBook.value = true
+        return
       }
+
+      const currentLesson = studentDoc.currentLesson
+
+      const currentIndex = bookLessons.indexOf(String(currentLesson))
+
+      // If currentLesson is not in list OR it's beyond the last index => book finished
+      const isEndOfBook = currentIndex === -1 || currentIndex >= bookLessons.length
+
+      if (isEndOfBook) {
+        lesson.value = null
+        endOfBook.value = true
+        return
+      }
+
+      // Otherwise, load current lesson for grading
+      lesson.value = {
+        book,
+        lessonNumber: String(currentLesson),
+        grade: '',
+        notes: '',
+      }
+      endOfBook.value = false
     }
   },
 )
