@@ -8,7 +8,7 @@
       <q-form @submit.prevent="submitLesson">
         <q-card-section>
           <q-input v-model="lesson.book" label="Book" />
-          <q-input v-model.number="lesson.lessonNumber" label="Lesson #" />
+          <q-input v-model="lesson.lessonNumber" label="Lesson #" />
           <q-input v-model="lesson.grade" label="Grade" />
           <q-input v-model="lesson.notes" label="Notes" type="textarea" />
         </q-card-section>
@@ -25,6 +25,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import StudentServices from '../services/StudentServices'
+import books from '../data/bookStructure.json'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -38,7 +39,7 @@ const emit = defineEmits(['update:modelValue', 'lessonSaved'])
 const isOpen = ref(props.modelValue)
 const lesson = ref({
   book: '',
-  lessonNumber: null,
+  lessonNumber: '',
   grade: '',
   notes: '',
 })
@@ -51,8 +52,11 @@ watch(
     if (val && props.studentId) {
       const studentDoc = await StudentServices.fetchStudentById(props.studentId)
       if (studentDoc) {
-        lesson.value.book = studentDoc.currentBook || ''
-        lesson.value.lessonNumber = studentDoc.currentLesson || 1
+        const book = studentDoc.book || ''
+        const currentLesson = studentDoc.currentLesson ?? books[book]?.[0]
+
+        lesson.value.book = book
+        lesson.value.lessonNumber = currentLesson
       }
     }
   },
@@ -61,7 +65,6 @@ watch(
 watch(isOpen, (val) => {
   emit('update:modelValue', val)
 })
-
 const submitLesson = async () => {
   if (!props.studentId) return
 
@@ -72,12 +75,7 @@ const submitLesson = async () => {
     classId: props.classId,
   })
 
-  // Update student's current lesson to next one
-  const nextLesson = (lesson.value.lessonNumber || 1) + 1
-  await StudentServices.updateStudentCurrentLesson(props.studentId, nextLesson)
-
   emit('lessonSaved')
-
   isOpen.value = false
 }
 </script>
