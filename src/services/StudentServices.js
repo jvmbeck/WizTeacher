@@ -58,13 +58,17 @@ const StudentServices = {
     if (!lessons) throw new Error(`Book "${book}" not found in structure`)
 
     const index = lessons.indexOf(String(currentLesson))
-    const hasNext = index !== -1 && index + 1 < lessons.length
-    if (!hasNext) {
-      return { nextLesson: null, isEndOfBook: true }
-    }
 
-    const nextLesson = lessons[index + 1]
-    return { nextLesson, isEndOfBook: false }
+    if (index === -1) {
+      throw new Error(`Lesson "${currentLesson}" not found in book "${book}"`)
+    }
+    const isLastLesson = index === lessons.length - 1
+    const nextLesson = isLastLesson ? null : lessons[index + 1]
+
+    return {
+      nextLesson,
+      isEndOfBook: isLastLesson,
+    }
   },
 
   async markStudentAbsent(studentId, classId) {
