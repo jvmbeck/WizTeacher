@@ -1,5 +1,6 @@
 import { getDoc, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
+import bookStructure from '../data/bookStructure.json'
 
 const StudentServices = {
   async fetchStudentsByIds(studentIds) {
@@ -17,48 +18,53 @@ const StudentServices = {
     return docSnap.exists() ? docSnap.data() : null
   },
 
-  async saveLessonForStudent(studentId, lessonInfo) {
-    const lessonId = `${lessonInfo.book}_${lessonInfo.lessonNumber}`
-    const studentLessonRef = doc(db, 'students', studentId, 'lessons', lessonId)
+  async saveLessonForStudent(studentId, lessonData) {
+    const studentRef = doc(db, 'students', studentId)
+    const studentSnap = await getDoc(studentRef)
+    if (!studentSnap.exists()) throw new Error('Student not found')
 
-    const lessonData = {
-      ...lessonInfo,
+    const studentData = studentSnap.data()
+    const book = lessonData.book || studentData.book
+    const currentLesson = studentData.currentLesson
+
+    const lessonNumber = lessonData.lessonNumber
+    const lessonId = `${book}_${lessonNumber}`
+
+    const fullLessonInfo = {
+      ...lessonData,
+      book,
+      lessonNumber,
+      studentId,
       completedAt: serverTimestamp(),
     }
 
-    // Write to student's lessons subcollection
-    await setDoc(studentLessonRef, lessonData)
+    // Save to student's personal lessons
+    await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
 
-    // === Create a meaningful ID for lessonsCompleted ===
-    const today = new Date()
-    const formattedDate = today.toISOString().split('T')[0] // YYYY-MM-DD
-    const globalLessonId = `${studentId}_${lessonId}_${formattedDate}`
+    // Save to global lessonsCompleted
+    await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
 
-    const globalRef = doc(db, 'lessonsCompleted', globalLessonId)
-    await setDoc(globalRef, {
-      ...lessonData,
-      studentId,
-      classId: lessonInfo.classId || '',
-      date: formattedDate,
-    })
+    if (lessonNumber === studentData.currentLesson) {
+      const { nextLesson } = this.getNextLesson(currentLesson, book)
+      // Update student's current lesson if it's not the same as the completed lesson
+      await updateDoc(studentRef, {
+        currentLesson: nextLesson,
+      })
+    }
   },
 
-  async updateStudentCurrentLesson(studentId) {
-    const studentRef = doc(db, 'students', studentId)
-    const snapshot = await getDoc(studentRef)
+  getNextLesson(currentLesson, book) {
+    const lessons = bookStructure[book]
+    if (!lessons) throw new Error(`Book "${book}" not found in structure`)
 
-    if (!snapshot.exists()) {
-      throw new Error('Student not found')
+    const index = lessons.indexOf(String(currentLesson))
+    const hasNext = index !== -1 && index + 1 < lessons.length
+    if (!hasNext) {
+      return { nextLesson: null, isEndOfBook: true }
     }
 
-    const currentLesson = snapshot.data().currentLesson || 0
-    const nextLesson = currentLesson + 1
-
-    await updateDoc(studentRef, {
-      currentLesson: nextLesson,
-    })
-
-    return nextLesson
+    const nextLesson = lessons[index + 1]
+    return { nextLesson, isEndOfBook: false }
   },
 
   async markStudentAbsent(studentId, classId) {
