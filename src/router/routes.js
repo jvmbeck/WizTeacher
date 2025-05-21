@@ -1,17 +1,33 @@
 const routes = [
   {
-    path: '/',
+    path: '/TeacherDashboard',
     component: () => import('layouts/MainLayout.vue'),
-    children: [{ path: '', name: 'IndexPage', component: () => import('src/pages/IndexPage.vue') }],
+    meta: { requiresAuth: true, role: 'teacher' },
+    children: [
+      {
+        path: '',
+        name: 'TeacherDashboard',
+        component: () => import('src/pages/TeacherDashboard.vue'),
+      },
+    ],
   },
   {
-    path: '/login',
+    path: '/AdminDashboard',
+    component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'AdminDashboard', component: () => import('src/pages/AdminDashboard.vue') },
+    ],
+  },
+  {
+    path: '/',
     component: () => import('layouts/MainLayout.vue'),
     children: [{ path: '', name: 'LoginPage', component: () => import('src/pages/LoginPage.vue') }],
   },
   {
     path: '/addNewClass',
     component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true, role: 'teacher' },
     children: [
       { path: '', name: 'NewClassPage', component: () => import('src/pages/NewClassPage.vue') },
     ],
@@ -19,6 +35,7 @@ const routes = [
   {
     path: '/class/:id',
     component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true, role: 'teacher' },
     children: [
       {
         path: '',
