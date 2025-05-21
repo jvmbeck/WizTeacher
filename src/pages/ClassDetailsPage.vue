@@ -40,7 +40,7 @@
     </q-dialog>
   </div>
 
-  <q-btn to="/">To class list</q-btn>
+  <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
 
   <!-- Import the SaveLessonForm component -->
   <SaveLessonFormComponent
