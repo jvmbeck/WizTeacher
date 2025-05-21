@@ -19,24 +19,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import ClassServices from 'src/services/ClassServices'
 import { useUserStore } from '../stores/userStore'
 
 const searchTerm = ref('')
 const teacherClasses = ref([])
 
-onMounted(async () => {
-  const userStore = useUserStore()
-  const teacherId = userStore.userInfo?.uid
+const userStore = useUserStore()
 
-  if (!teacherId) {
-    console.error('No teacher ID found')
-    return
-  }
-
-  teacherClasses.value = await ClassServices.fetchClassesByTeacher(teacherId)
-})
+// Wait until userInfo is available before trying to fetch teacher's classes
+watch(
+  () => userStore.userInfo,
+  async (userInfo) => {
+    if (userInfo?.uid) {
+      teacherClasses.value = await ClassServices.fetchClassesByTeacher(userInfo.uid)
+    } else {
+      console.error('No teacher ID found')
+    }
+  },
+  { immediate: true }, // Run immediately if userInfo is already available
+)
 
 const filteredClasses = computed(() => {
   if (!searchTerm.value) return teacherClasses.value
