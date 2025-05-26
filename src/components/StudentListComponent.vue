@@ -29,20 +29,10 @@
         flat
         bordered
         :filter="searchQuery"
-      >
-        <template v-slot:body-cell-actions="props">
-          <q-td class="text-right">
-            <q-btn flat icon="edit" @click="openEditDialog(props.row)" class="q-ml-sm" />
-          </q-td>
-        </template>
-      </q-table>
+      />
     </q-card>
 
-    <StudentForm
-      v-model="isDialogOpen"
-      :studentToEdit="studentToEdit"
-      @updated="studentStore.fetchStudents"
-    />
+    <AddStudentDialog v-model="isDialogOpen"></AddStudentDialog>
   </q-page>
 </template>
 
@@ -51,15 +41,9 @@ import { useStudentStore } from 'src/stores/studentStore'
 import { useClassStore } from 'src/stores/classStore'
 import { onMounted, computed, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import StudentForm from './StudentForm.vue'
+import AddStudentDialog from './AddStudentDialog.vue'
 
 const isDialogOpen = ref(false)
-const studentToEdit = ref(null)
-
-const openEditDialog = (student) => {
-  studentToEdit.value = { ...student }
-  isDialogOpen.value = true
-}
 
 const studentStore = useStudentStore()
 const classStore = useClassStore()
@@ -108,7 +92,6 @@ const columns = [
     format: (val) => classMap.value[val] || '—',
     sortable: true,
   },
-  { name: 'actions', label: '', field: 'id' },
 ]
 </script>
 
