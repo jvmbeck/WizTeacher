@@ -11,14 +11,7 @@ const routes = [
       },
     ],
   },
-  {
-    path: '/AdminDashboard',
-    component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true, role: 'admin' },
-    children: [
-      { path: '', name: 'AdminDashboard', component: () => import('src/pages/AdminDashboard.vue') },
-    ],
-  },
+
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
@@ -42,6 +35,24 @@ const routes = [
         name: 'ClassDetails',
         component: () => import('src/pages/ClassDetailsPage.vue'),
       },
+    ],
+  },
+
+  {
+    path: '/AdminDashboard',
+    component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'AdminDashboard', component: () => import('src/pages/AdminDashboard.vue') },
+    ],
+  },
+
+  {
+    path: '/studentList',
+    component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      { path: '', name: 'StudentList', component: () => import('src/pages/StudentListPage.vue') },
     ],
   },
 
