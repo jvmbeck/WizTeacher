@@ -87,7 +87,10 @@ const handleLessonSaved = async () => {
     lessonDialog.value = false
   }, 2000)
   // refresh student data
-  fetchStudentList()
+  console.log('Refreshing student data...')
+  setTimeout(() => {
+    fetchStudentList()
+  }, 1000)
 }
 
 const markAbsent = async (studentId) => {
