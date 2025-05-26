@@ -1,8 +1,34 @@
-import { getDoc, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import {
+  getDoc,
+  getDocs,
+  doc,
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+  addDoc,
+  collection,
+  arrayUnion,
+} from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
+import { getAuth } from 'firebase/auth'
+import classServices from './ClassServices.js' // Adjust the path as necessary
 
 const StudentServices = {
+  async fetchAllStudents() {
+    const snapshot = await getDocs(collection(db, 'students'))
+    const students = snapshot.docs.map((docSnap) => {
+      const data = docSnap.data()
+      return {
+        uid: docSnap.id,
+        name: data.name || '',
+        book: data.book || '',
+        currentLesson: data.currentLesson || '',
+        classId: data.classId || null,
+      }
+    })
+    return students
+  },
   async fetchStudentsByIds(studentIds) {
     const promises = studentIds.map((id) => getDoc(doc(db, 'students', id)))
     const snapshots = await Promise.all(promises)
@@ -38,11 +64,26 @@ const StudentServices = {
       completedAt: serverTimestamp(),
     }
 
+    const auth = getAuth()
+    const user = auth.currentUser
+
+    if (!user) {
+      console.warn('No user signed in')
+      return
+    }
+    try {
+      await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
+    } catch (error) {
+      console.error('❌ StudentDoc write error:', error.code, error.message)
+    }
     // Save to student's personal lessons
-    await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
 
     // Save to global lessonsCompleted
-    await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
+    try {
+      await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
+    } catch (error) {
+      console.error('❌ lessonsCompleted write error:', error.code, error.message)
+    }
 
     if (lessonNumber === studentData.currentLesson) {
       const { nextLesson } = this.getNextLesson(currentLesson, book)
@@ -88,6 +129,38 @@ const StudentServices = {
       reason: 'Absent',
       markedAt: serverTimestamp(),
     })
+  },
+
+  async addStudent(studentData) {
+    const docRef = await addDoc(collection(db, 'students'), studentData)
+
+    if (studentData.classId) {
+      const classRef = doc(db, 'classes', studentData.classId)
+      await updateDoc(classRef, {
+        studentIds: arrayUnion(docRef.id),
+      })
+    }
+
+    return { id: docRef.id, ...studentData }
+  },
+
+  async updateStudent(id, updatedData, oldClassId = null) {
+    console.log('Updating student ID:', id)
+    console.log('Updated Data:', updatedData)
+    if (!updatedData.classId) {
+      console.error('updatedData.classId is undefined')
+    }
+
+    const docRef = doc(db, 'students', id)
+    await updateDoc(docRef, updatedData)
+    if (oldClassId && updatedData.classId && oldClassId !== updatedData.classId) {
+      console.log('Moving student to new class:', {
+        oldClassId,
+        newClassId: updatedData.classId,
+        studentId: id,
+      })
+      await classServices.updateClassStudentRefs(oldClassId, updatedData.classId, id)
+    }
   },
 }
 
