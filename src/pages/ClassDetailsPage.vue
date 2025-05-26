@@ -43,7 +43,7 @@
   <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
 
   <!-- Import the SaveLessonForm component -->
-  <SaveLessonFormComponent
+  <SaveLessonForm
     v-model="isFormOpen"
     :student-id="selectedStudentId"
     :student-name="selectedStudent?.name"
@@ -58,7 +58,7 @@ import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import StudentServices from '../services/StudentServices.js'
-import SaveLessonFormComponent from 'src/components/SaveLessonFormComponent.vue'
+import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../data/bookStructure.json'
 
 const route = useRoute()
