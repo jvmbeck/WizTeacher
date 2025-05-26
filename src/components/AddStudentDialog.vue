@@ -5,12 +5,12 @@
         <div class="text-h6">Add New Student</div>
       </q-card-section>
 
-      <q-form @submit="handleSubmit" class="q-gutter-md">
+      <q-form @submit="submitStudent">
         <q-card-section class="q-gutter-md">
-          <q-input v-model="form.name" label="Name" outlined dense required />
-          <q-input v-model="form.book" label="Book" outlined dense required />
+          <q-input v-model="newStudent.name" label="Name" outlined dense required />
+          <q-input v-model="newStudent.book" label="Book" outlined dense required />
           <q-input
-            v-model="form.currentLesson"
+            v-model="newStudent.currentLesson"
             label="Current Lesson"
             type="number"
             outlined
@@ -39,17 +39,13 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, reactive } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useClassStore } from 'src/stores/classStore'
 import { useStudentStore } from 'src/stores/studentStore'
 import { storeToRefs } from 'pinia'
 
 const props = defineProps({
   modelValue: Boolean,
-  studentToEdit: {
-    type: Object,
-    default: null,
-  },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -64,38 +60,32 @@ const { classes } = storeToRefs(classStore)
 onMounted(() => {
   classStore.fetchClasses()
 })
-const form = reactive({
+const newStudent = ref({
   name: '',
   book: '',
-  currentLesson: '',
-  classId: '',
+  currentLesson: 1,
+  classId: selectedClassId,
 })
 
 watch(
-  () => props.studentToEdit,
-  (newVal) => {
-    if (newVal) {
-      Object.assign(form, { ...newVal }) // populate with student's existing info
-    } else {
-      Object.assign(form, {
+  () => props.modelValue,
+  (val) => {
+    if (val) {
+      newStudent.value = {
         name: '',
         book: '',
-        currentLesson: '',
-        classId: '',
-      })
+        currentLesson: 1,
+        classId: selectedClassId,
+      }
     }
   },
-  { immediate: true },
 )
 
-const handleSubmit = async () => {
-  if (props.studentToEdit.value) {
-    await studentStore.updateStudent(props.studentToEdit.value.id, { ...form })
-  } else {
-    await studentStore.addStudent({ ...form })
-  }
+async function submitStudent() {
+  await studentStore.addStudent(newStudent.value)
   emit('update:modelValue', false)
 }
+
 function emitClose(val) {
   emit('update:modelValue', val)
 }
