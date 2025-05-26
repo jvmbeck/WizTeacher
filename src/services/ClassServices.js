@@ -1,5 +1,16 @@
 // services/classes.js
-import { doc, setDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore'
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  arrayRemove,
+  arrayUnion,
+} from 'firebase/firestore'
 import { db } from '../key/configKey.js' // Adjust the path as necessary
 //import { useUserStore } from '../stores/userStore.js' // Adjust the path as necessary
 
@@ -55,6 +66,18 @@ const ClassServices = {
     })
 
     return classes
+  },
+  async updateClassStudentRefs(oldClassId, newClassId, studentId) {
+    if (oldClassId) {
+      await updateDoc(doc(db, 'classes', oldClassId), {
+        students: arrayRemove(studentId),
+      })
+    }
+    if (newClassId) {
+      await updateDoc(doc(db, 'classes', newClassId), {
+        students: arrayUnion(studentId),
+      })
+    }
   },
 }
 
