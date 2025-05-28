@@ -145,22 +145,24 @@ const StudentServices = {
     return { id: docRef.id, ...studentData }
   },
 
-  async updateStudent(id, updatedData, oldClassId = null) {
-    console.log('Updating student ID:', id)
-    console.log('Updated Data:', updatedData)
-    if (!updatedData.classId) {
-      console.error('updatedData.classId is undefined')
-    }
+  async updateStudent(studentId, updatedData, oldClassId = null) {
+    console.log('Updating student:', studentId, updatedData)
 
-    const docRef = doc(db, 'students', id)
-    await updateDoc(docRef, updatedData)
-    if (oldClassId && updatedData.classId && oldClassId !== updatedData.classId) {
-      console.log('Moving student to new class:', {
-        oldClassId,
-        newClassId: updatedData.classId,
-        studentId: id,
-      })
-      await classServices.updateClassStudentRefs(oldClassId, updatedData.classId, id)
+    const studentRef = doc(db, 'students', studentId)
+
+    // Save updated fields to the student document
+    const { name, book, currentLesson, classId } = updatedData
+    await updateDoc(studentRef, {
+      name,
+      book,
+      currentLesson,
+      classId,
+    })
+
+    // If class has changed, update class membership
+    if (oldClassId && oldClassId !== classId) {
+      await classServices.removeStudentFromClass(oldClassId, studentId)
+      await classServices.addStudentToClass(classId, studentId)
     }
   },
 
