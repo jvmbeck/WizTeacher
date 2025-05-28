@@ -165,10 +165,32 @@ const StudentServices = {
   },
 
   async deleteStudent(id, classId = null) {
-    await deleteDoc(doc(db, 'students', id))
+    try {
+      const studentRef = doc(db, 'students', id)
 
-    if (classId) {
-      await classServices.removeStudentFromClass(classId, id)
+      // If classId not provided, fetch student data
+      if (!classId) {
+        const studentSnap = await getDoc(studentRef)
+        if (!studentSnap.exists()) throw new Error('Student not found')
+        classId = studentSnap.data().classId
+      }
+
+      // Delete 'lessons' subcollection
+      const lessonsRef = collection(db, 'students', id, 'lessons')
+      const lessonsSnapshot = await getDocs(lessonsRef)
+
+      await Promise.all(lessonsSnapshot.docs.map((doc) => deleteDoc(doc.ref)))
+
+      // Delete student document
+      await deleteDoc(studentRef)
+
+      // Remove student from class
+      if (classId) {
+        await classServices.removeStudentFromClass(classId, id)
+      }
+    } catch (error) {
+      console.error('Error deleting student:', error)
+      throw error
     }
   },
 }
