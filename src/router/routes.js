@@ -46,13 +46,25 @@ const routes = [
       { path: '', name: 'AdminDashboard', component: () => import('src/pages/AdminDashboard.vue') },
     ],
   },
-
   {
     path: '/studentList',
     component: () => import('layouts/MainLayout.vue'),
     meta: { requiresAuth: true, role: 'admin' },
     children: [
       { path: '', name: 'StudentList', component: () => import('src/pages/StudentListPage.vue') },
+    ],
+  },
+  {
+    path: '/student/:id',
+    name: 'student-details',
+    component: () => import('layouts/MainLayout.vue'),
+    meta: { requiresAuth: true, role: 'admin' },
+    children: [
+      {
+        path: '',
+        name: 'StudentDetails',
+        component: () => import('src/pages/StudentDetailsPage.vue'),
+      },
     ],
   },
 
