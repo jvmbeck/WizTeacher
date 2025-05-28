@@ -79,6 +79,13 @@ const ClassServices = {
       })
     }
   },
+
+  async removeStudentFromClass(classId, studentId) {
+    const classRef = doc(db, 'classes', classId)
+    await updateDoc(classRef, {
+      studentIds: arrayRemove(studentId),
+    })
+  },
 }
 
 export default ClassServices

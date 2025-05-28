@@ -20,5 +20,9 @@ export const useStudentStore = defineStore('studentStore', {
       await StudentServices.updateStudent(id, updatedData, oldClassId)
       await this.fetchStudents()
     },
+    async deleteStudent(id, classId) {
+      await StudentServices.deleteStudent(id, classId)
+      await this.fetchStudents()
+    },
   },
 })

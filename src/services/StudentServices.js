@@ -8,6 +8,7 @@ import {
   addDoc,
   collection,
   arrayUnion,
+  deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
@@ -160,6 +161,14 @@ const StudentServices = {
         studentId: id,
       })
       await classServices.updateClassStudentRefs(oldClassId, updatedData.classId, id)
+    }
+  },
+
+  async deleteStudent(id, classId = null) {
+    await deleteDoc(doc(db, 'students', id))
+
+    if (classId) {
+      await classServices.removeStudentFromClass(classId, id)
     }
   },
 }
