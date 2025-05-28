@@ -34,6 +34,14 @@
       >
         <template v-slot:body-cell-actions="props">
           <q-td class="text-right">
+            <q-btn
+              icon="info"
+              color="secondary"
+              round
+              dense
+              @click="goToStudentDetails(props.row.uid)"
+              class="q-ml-xs"
+            />
             <q-btn flat icon="edit" @click="openEditDialog(props.row)" class="q-ml-sm" />
             <q-btn
               flat
@@ -60,11 +68,18 @@
 import { useStudentStore } from 'src/stores/studentStore'
 import { useClassStore } from 'src/stores/classStore'
 import { onMounted, computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 import AddStudentDialog from './AddStudentDialog.vue'
 import UpdateStudentDialog from './UpdateStudentDialog.vue'
 import StudentServices from 'src/services/StudentServices'
+
+const router = useRouter()
+
+function goToStudentDetails(studentId) {
+  router.push({ name: 'student-details', params: { id: studentId } })
+}
 
 const $q = useQuasar()
 
