@@ -80,6 +80,13 @@ const ClassServices = {
     }
   },
 
+  async addStudentToClass(classId, studentId) {
+    const classRef = doc(db, 'classes', classId)
+    await updateDoc(classRef, {
+      studentIds: arrayUnion(studentId),
+    })
+  },
+
   async removeStudentFromClass(classId, studentId) {
     const classRef = doc(db, 'classes', classId)
     await updateDoc(classRef, {
