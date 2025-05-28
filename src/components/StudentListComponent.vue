@@ -5,12 +5,14 @@
         v-model="searchQuery"
         label="Search by name, book, or class"
         outlined
-        dense
         debounce="300"
         rounded
         class="q-mt-sm list-query"
       >
         <template v-slot:append>
+          <q-icon name="close" @click="searchQuery = ''" class="cursor-pointer" />
+        </template>
+        <template v-slot:before>
           <q-icon name="search" />
         </template>
       </q-input>
@@ -29,7 +31,20 @@
         flat
         bordered
         :filter="searchQuery"
-      />
+      >
+        <template v-slot:body-cell-actions="props">
+          <q-td class="text-right">
+            <q-btn flat icon="edit" @click="openEditDialog(props.row)" class="q-ml-sm" />
+            <q-btn
+              flat
+              icon="delete"
+              color="negative"
+              @click="confirmDelete(props.row)"
+              class="q-ml-sm"
+            />
+          </q-td>
+        </template>
+      </q-table>
     </q-card>
 
     <AddStudentDialog v-model="isDialogOpen"></AddStudentDialog>
@@ -40,8 +55,33 @@
 import { useStudentStore } from 'src/stores/studentStore'
 import { useClassStore } from 'src/stores/classStore'
 import { onMounted, computed, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 import AddStudentDialog from './AddStudentDialog.vue'
+import StudentServices from 'src/services/StudentServices'
+
+const $q = useQuasar()
+
+const confirmDelete = (student) => {
+  console.log('Student to delete:', student) // ✅ check if student is defined
+  console.log('Student ID:', student.uid) // ✅ check if id exists
+
+  $q.dialog({
+    title: 'Confirm Deletion',
+    message: `Are you sure you want to delete ${student.name}?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      await StudentServices.deleteStudent(student.uid)
+      $q.notify({ type: 'positive', message: 'Student deleted successfully' })
+      await studentStore.fetchStudents()
+    } catch (error) {
+      console.error(error)
+      $q.notify({ type: 'negative', message: 'Failed to delete student' })
+    }
+  })
+}
 
 const isDialogOpen = ref(false)
 
@@ -92,6 +132,7 @@ const columns = [
     format: (val) => classMap.value[val] || '—',
     sortable: true,
   },
+  { name: 'actions', label: '', field: 'id' },
 ]
 </script>
 
