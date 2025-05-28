@@ -48,6 +48,11 @@
     </q-card>
 
     <AddStudentDialog v-model="isDialogOpen"></AddStudentDialog>
+    <UpdateStudentDialog
+      v-model="isUpdateDialogOpen"
+      :student="selectedStudent"
+      @update="handleUpdateStudent"
+    />
   </q-page>
 </template>
 
@@ -58,10 +63,32 @@ import { onMounted, computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 import AddStudentDialog from './AddStudentDialog.vue'
+import UpdateStudentDialog from './UpdateStudentDialog.vue'
 import StudentServices from 'src/services/StudentServices'
 
 const $q = useQuasar()
 
+const isDialogOpen = ref(false)
+const isUpdateDialogOpen = ref(false)
+const selectedStudent = ref(null)
+
+const openEditDialog = (student) => {
+  console.log('Editing student:', student)
+  selectedStudent.value = student
+  isUpdateDialogOpen.value = true
+}
+
+const handleUpdateStudent = async (updatedStudent) => {
+  try {
+    const oldClassId = selectedStudent.value.classId
+    await StudentServices.updateStudent(updatedStudent.uid, updatedStudent, oldClassId)
+    $q.notify({ type: 'positive', message: 'Student updated successfully' })
+    await studentStore.fetchStudents()
+  } catch (err) {
+    console.error(err)
+    $q.notify({ type: 'negative', message: 'Failed to update student' })
+  }
+}
 const confirmDelete = (student) => {
   console.log('Student to delete:', student) // ✅ check if student is defined
   console.log('Student ID:', student.uid) // ✅ check if id exists
@@ -82,8 +109,6 @@ const confirmDelete = (student) => {
     }
   })
 }
-
-const isDialogOpen = ref(false)
 
 const studentStore = useStudentStore()
 const classStore = useClassStore()
