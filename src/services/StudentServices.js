@@ -1,8 +1,35 @@
-import { getDoc, doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import {
+  getDoc,
+  getDocs,
+  doc,
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+  addDoc,
+  collection,
+  arrayUnion,
+  deleteDoc,
+} from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
+import { getAuth } from 'firebase/auth'
+import classServices from './ClassServices.js' // Adjust the path as necessary
 
 const StudentServices = {
+  async fetchAllStudents() {
+    const snapshot = await getDocs(collection(db, 'students'))
+    const students = snapshot.docs.map((docSnap) => {
+      const data = docSnap.data()
+      return {
+        uid: docSnap.id,
+        name: data.name || '',
+        book: data.book || '',
+        currentLesson: data.currentLesson || '',
+        classId: data.classId || null,
+      }
+    })
+    return students
+  },
   async fetchStudentsByIds(studentIds) {
     const promises = studentIds.map((id) => getDoc(doc(db, 'students', id)))
     const snapshots = await Promise.all(promises)
@@ -38,11 +65,26 @@ const StudentServices = {
       completedAt: serverTimestamp(),
     }
 
+    const auth = getAuth()
+    const user = auth.currentUser
+
+    if (!user) {
+      console.warn('No user signed in')
+      return
+    }
+    try {
+      await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
+    } catch (error) {
+      console.error('❌ StudentDoc write error:', error.code, error.message)
+    }
     // Save to student's personal lessons
-    await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
 
     // Save to global lessonsCompleted
-    await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
+    try {
+      await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
+    } catch (error) {
+      console.error('❌ lessonsCompleted write error:', error.code, error.message)
+    }
 
     if (lessonNumber === studentData.currentLesson) {
       const { nextLesson } = this.getNextLesson(currentLesson, book)
@@ -88,6 +130,70 @@ const StudentServices = {
       reason: 'Absent',
       markedAt: serverTimestamp(),
     })
+  },
+
+  async addStudent(studentData) {
+    const docRef = await addDoc(collection(db, 'students'), studentData)
+
+    if (studentData.classId) {
+      const classRef = doc(db, 'classes', studentData.classId)
+      await updateDoc(classRef, {
+        studentIds: arrayUnion(docRef.id),
+      })
+    }
+
+    return { id: docRef.id, ...studentData }
+  },
+
+  async updateStudent(studentId, updatedData, oldClassId = null) {
+    console.log('Updating student:', studentId, updatedData)
+
+    const studentRef = doc(db, 'students', studentId)
+
+    // Save updated fields to the student document
+    const { name, book, currentLesson, classId } = updatedData
+    await updateDoc(studentRef, {
+      name,
+      book,
+      currentLesson,
+      classId,
+    })
+
+    // If class has changed, update class membership
+    if (oldClassId && oldClassId !== classId) {
+      await classServices.removeStudentFromClass(oldClassId, studentId)
+      await classServices.addStudentToClass(classId, studentId)
+    }
+  },
+
+  async deleteStudent(id, classId = null) {
+    try {
+      const studentRef = doc(db, 'students', id)
+
+      // If classId not provided, fetch student data
+      if (!classId) {
+        const studentSnap = await getDoc(studentRef)
+        if (!studentSnap.exists()) throw new Error('Student not found')
+        classId = studentSnap.data().classId
+      }
+
+      // Delete 'lessons' subcollection
+      const lessonsRef = collection(db, 'students', id, 'lessons')
+      const lessonsSnapshot = await getDocs(lessonsRef)
+
+      await Promise.all(lessonsSnapshot.docs.map((doc) => deleteDoc(doc.ref)))
+
+      // Delete student document
+      await deleteDoc(studentRef)
+
+      // Remove student from class
+      if (classId) {
+        await classServices.removeStudentFromClass(classId, id)
+      }
+    } catch (error) {
+      console.error('Error deleting student:', error)
+      throw error
+    }
   },
 }
 

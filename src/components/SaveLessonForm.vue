@@ -29,6 +29,8 @@
 import { ref, watch } from 'vue'
 import StudentServices from '../services/StudentServices'
 import books from '../data/bookStructure.json'
+import { getAuth } from 'firebase/auth'
+import { onAuthStateChanged } from '../key/configKey.js'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -99,11 +101,28 @@ watch(isOpen, (val) => {
 const submitLesson = async () => {
   if (!props.studentId) return
 
+  const auth = getAuth()
+  const user = auth.currentUser
+
+  if (!user) {
+    console.warn('User not authenticated')
+    return
+  }
+
   // Save lesson info
-  await StudentServices.saveLessonForStudent(props.studentId, {
-    ...lesson.value,
-    studentName: props.studentName,
-    classId: props.classId,
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      console.log('✅ Auth ready. UID:', user.uid)
+      // now it's safe to call saveLessonForStudent or Firestore writes
+      StudentServices.saveLessonForStudent(props.studentId, {
+        ...lesson.value,
+        studentName: props.studentName,
+        classId: props.classId,
+      })
+    } else {
+      console.warn('❌ User not logged in.')
+    }
   })
 
   emit('lessonSaved')

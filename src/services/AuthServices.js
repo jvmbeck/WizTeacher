@@ -1,5 +1,6 @@
 import { signInWithEmailAndPassword, getAuth, signOut, onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../key/configKey.js' // Adjust the import path as necessary
+import { doc, getDoc } from 'firebase/firestore'
+import { auth, db } from '../key/configKey.js' // Adjust the import path as necessary
 import { useUserStore } from '../stores/userStore.js' // Adjust the import path as necessary
 
 const AuthServices = {
@@ -8,13 +9,6 @@ const AuthServices = {
       const authInstance = getAuth()
       const userCredential = await signInWithEmailAndPassword(authInstance, email, password)
       const user = userCredential.user
-
-      const userStore = useUserStore()
-      userStore.setUser({
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-      })
 
       console.log('User signed in:', user.uid)
     } catch (error) {
@@ -28,6 +22,23 @@ const AuthServices = {
       console.log('User signed out.')
     } catch (error) {
       console.error('Error signing out:', error.message)
+    }
+  },
+
+  async getSignedInUserInfo(userId) {
+    try {
+      const docRef = doc(db, 'users', userId) // Adjust the collection name as necessary
+      const docSnap = await getDoc(docRef)
+
+      if (docSnap.exists()) {
+        return docSnap // Return the document snapshot
+      } else {
+        console.log('No such document!')
+        return null
+      }
+    } catch (error) {
+      console.error('Error fetching user info:', error)
+      throw error
     }
   },
 

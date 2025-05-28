@@ -40,10 +40,10 @@
     </q-dialog>
   </div>
 
-  <q-btn to="/">To class list</q-btn>
+  <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
 
   <!-- Import the SaveLessonForm component -->
-  <SaveLessonFormComponent
+  <SaveLessonForm
     v-model="isFormOpen"
     :student-id="selectedStudentId"
     :student-name="selectedStudent?.name"
@@ -58,7 +58,7 @@ import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import StudentServices from '../services/StudentServices.js'
-import SaveLessonFormComponent from 'src/components/SaveLessonFormComponent.vue'
+import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../data/bookStructure.json'
 
 const route = useRoute()
@@ -87,7 +87,10 @@ const handleLessonSaved = async () => {
     lessonDialog.value = false
   }, 2000)
   // refresh student data
-  fetchStudentList()
+  console.log('Refreshing student data...')
+  setTimeout(() => {
+    fetchStudentList()
+  }, 1000)
 }
 
 const markAbsent = async (studentId) => {

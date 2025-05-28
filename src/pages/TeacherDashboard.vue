@@ -16,7 +16,7 @@ import ClassListComponent from 'src/components/ClassListComponent.vue'
 import { useUserStore } from 'src/stores/userStore.js'
 
 export default {
-  name: 'IndexPage',
+  name: 'TeacherDashboard',
   computed: {
     // Access the userInfo from the store
     teacherName() {

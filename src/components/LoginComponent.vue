@@ -55,17 +55,22 @@ export default {
     async handleLogin() {
       const userStore = useUserStore()
       try {
-        await AuthServices.handlePasswordAuthentication(this.email, this.password) // Sign in the user
-        await userStore.loadUserInfo() // Load user info into the store
-        this.$router.push({ name: 'IndexPage' }) // Navigate to IndexPage
+        await AuthServices.handlePasswordAuthentication(this.email, this.password)
+        await userStore.loadUserInfo()
+
+        const role = userStore.userInfo?.role
+
+        if (role === 'admin') {
+          this.$router.push({ name: 'AdminDashboard' })
+        } else if (role === 'teacher') {
+          this.$router.push({ name: 'TeacherDashboard' })
+        } else {
+          throw new Error('Unauthorized or missing role')
+        }
       } catch (error) {
         this.dialogMessage = 'Login failed: ' + error.message
         this.showDialog = true
       }
-    },
-    resetPassword() {
-      // Handle reset password logic here
-      alert('Reset password functionality not implemented yet.')
     },
   },
 }
