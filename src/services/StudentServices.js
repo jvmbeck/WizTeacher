@@ -9,12 +9,16 @@ import {
   collection,
   arrayUnion,
   deleteDoc,
+  runTransaction,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
 import { getAuth } from 'firebase/auth'
 import classServices from './ClassServices.js' // Adjust the path as necessary
+import { useUserStore } from 'src/stores/userStore.js'
 
+const userStore = useUserStore()
+// Ensure userStore is imported and used correctly
 const StudentServices = {
   async fetchAllStudents() {
     const snapshot = await getDocs(collection(db, 'students'))
@@ -57,14 +61,6 @@ const StudentServices = {
     const lessonNumber = lessonData.lessonNumber
     const lessonId = `${book}_${lessonNumber}`
 
-    const fullLessonInfo = {
-      ...lessonData,
-      book,
-      lessonNumber,
-      studentId,
-      completedAt: serverTimestamp(),
-    }
-
     const auth = getAuth()
     const user = auth.currentUser
 
@@ -72,6 +68,17 @@ const StudentServices = {
       console.warn('No user signed in')
       return
     }
+
+    const fullLessonInfo = {
+      ...lessonData,
+      book,
+      lessonNumber,
+      studentId,
+      completedAt: serverTimestamp(),
+      teacherId: user.uid,
+      teacherName: userStore.userInfo?.name || 'Unknown Teacher',
+    }
+
     try {
       await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
     } catch (error) {
@@ -86,8 +93,14 @@ const StudentServices = {
       console.error('❌ lessonsCompleted write error:', error.code, error.message)
     }
 
+    console.log(`Lesson ${lessonNumber} saved for student ${studentId}.`)
+    console.log('studentData.currentLesson:', studentData.currentLesson)
+
     if (lessonNumber === studentData.currentLesson) {
       const { nextLesson } = this.getNextLesson(currentLesson, book)
+      console.log(
+        `Lesson ${lessonNumber} already marked as completed for student ${studentId} and updating to ${nextLesson}.`,
+      )
       // Update student's current lesson if it's not the same as the completed lesson
       await updateDoc(studentRef, {
         currentLesson: nextLesson,
@@ -115,20 +128,40 @@ const StudentServices = {
 
   async markStudentAbsent(studentId, classId) {
     const today = new Date().toISOString().split('T')[0]
-    const docId = `${studentId}_${classId}_${today}`
-    const ref = doc(db, 'absences', docId)
+    const absenceId = `${studentId}_${classId}_${today}`
+    const absenceRef = doc(db, 'absences', absenceId)
+    const studentRef = doc(db, 'students', studentId)
 
-    const exists = await getDoc(ref)
-    if (exists.exists()) {
-      throw new Error('Absence already recorded for today.')
-    }
+    // transaction ensures absence marking and counter update happen together.
 
-    await setDoc(ref, {
-      studentId,
-      classId,
-      date: today,
-      reason: 'Absent',
-      markedAt: serverTimestamp(),
+    await runTransaction(db, async (transaction) => {
+      // Check if absence already exists
+      const absenceDoc = await transaction.get(absenceRef)
+      if (absenceDoc.exists()) {
+        throw new Error('Absence already recorded for today.')
+      }
+
+      // Read student document
+      const studentDoc = await transaction.get(studentRef)
+      if (!studentDoc.exists()) {
+        throw new Error('Student not found.')
+      }
+
+      const currentAbsences = studentDoc.data().totalAbsences || 0
+
+      // Write: mark the absence
+      transaction.set(absenceRef, {
+        studentId,
+        classId,
+        date: today,
+        reason: 'Absent',
+        markedAt: serverTimestamp(),
+      })
+
+      // Write: increment totalAbsences
+      transaction.update(studentRef, {
+        totalAbsences: currentAbsences + 1,
+      })
     })
   },
 
