@@ -55,14 +55,13 @@ const routes = [
     ],
   },
   {
-    path: '/student/:id',
-    name: 'student-details',
+    path: '/studentDetails/:studentId',
     component: () => import('layouts/MainLayout.vue'),
     meta: { requiresAuth: true, role: 'admin' },
     children: [
       {
         path: '',
-        name: 'StudentDetails',
+        name: 'studentDetails',
         component: () => import('src/pages/StudentDetailsPage.vue'),
       },
     ],

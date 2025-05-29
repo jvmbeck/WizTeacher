@@ -1,6 +1,6 @@
 <template>
   <div class="q-pa-md">
-    <h5>Class: {{ classInfo?.classDay }} at {{ classInfo?.schedule }}</h5>
+    <h5>{{ classInfo?.className }}</h5>
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
