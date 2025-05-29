@@ -4,10 +4,11 @@
     <q-btn to="/teacherList">Teacher</q-btn>
     <q-btn to="/classList">Classes</q-btn>
   </div>
+  <SignOutButton></SignOutButton>
 </template>
 
 <script setup>
-// No script logic needed for simple buttons
+import SignOutButton from 'src/components/SignOutButton.vue'
 </script>
 
 <style scoped>
