@@ -4,11 +4,11 @@
       <q-btn to="/AdminDashboard" label="Início" />
       <q-input
         v-model="searchQuery"
-        label="Search by name, book, or class"
+        label="Pesquisar alunos, livros ou turmas"
         outlined
         debounce="300"
         rounded
-        class="q-mt-sm list-query"
+        class="q-mt-sm query-input"
       >
         <template v-slot:append>
           <q-icon name="close" @click="searchQuery = ''" class="cursor-pointer" />
@@ -22,7 +22,7 @@
 
     <q-card>
       <q-card-section>
-        <div class="text-h6">Student List</div>
+        <div class="text-h6">Lista de alunos</div>
       </q-card-section>
 
       <q-table
@@ -32,6 +32,8 @@
         flat
         bordered
         :filter="searchQuery"
+        :pagination="{ rowsPerPage: 0 }"
+        separator="cell"
       >
         <template v-slot:body-cell-actions="props">
           <q-td class="text-right">
@@ -56,7 +58,7 @@
       </q-table>
     </q-card>
 
-    <AddStudentDialog v-model="isDialogOpen"></AddStudentDialog>
+    <AddStudentDialog v-model="isDialogOpen" @create="handleCreateStudent"></AddStudentDialog>
     <UpdateStudentDialog
       v-model="isUpdateDialogOpen"
       :student="selectedStudent"
@@ -92,6 +94,18 @@ const openEditDialog = (student) => {
   console.log('Editing student:', student)
   selectedStudent.value = student
   isUpdateDialogOpen.value = true
+}
+
+const handleCreateStudent = async (newStudent) => {
+  try {
+    console.log('Creating student:', newStudent.name)
+    $q.notify({ type: 'positive', message: 'Student added successfully' })
+    isDialogOpen.value = false
+    await studentStore.fetchStudents()
+  } catch (err) {
+    console.error(err)
+    $q.notify({ type: 'negative', message: 'Failed to add student' })
+  }
 }
 
 const handleUpdateStudent = async (updatedStudent) => {
@@ -163,12 +177,12 @@ const filteredStudents = computed(() => {
 })
 
 const columns = [
-  { name: 'name', label: 'Name', field: 'name', sortable: true },
-  { name: 'book', label: 'Book', field: 'book', sortable: true },
+  { name: 'name', label: 'Nome', field: 'name', sortable: true },
+  { name: 'book', label: 'Livro', field: 'book', sortable: true },
   { name: 'currentLesson', label: 'Lição Atual', field: 'currentLesson', sortable: true },
   {
     name: 'class',
-    label: 'Class',
+    label: 'Turma',
     field: 'classId', // must be a key on student object
     format: (val) => classMap.value[val] || '—',
     sortable: true,
