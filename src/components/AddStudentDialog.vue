@@ -48,7 +48,7 @@ const props = defineProps({
   modelValue: Boolean,
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'create'])
 
 const studentStore = useStudentStore()
 
@@ -63,7 +63,7 @@ onMounted(() => {
 const newStudent = ref({
   name: '',
   book: '',
-  currentLesson: 1,
+  currentLesson: '1',
   classId: selectedClassId,
 })
 
@@ -83,6 +83,7 @@ watch(
 
 async function submitStudent() {
   await studentStore.addStudent(newStudent.value)
+  emit('create', { ...newStudent.value })
   emit('update:modelValue', false)
 }
 
