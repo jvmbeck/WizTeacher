@@ -228,6 +228,37 @@ const StudentServices = {
       throw error
     }
   },
+
+  async removeStudentFromClass(studentId) {
+    // Ensure studentId is provided
+    if (!studentId) {
+      throw new Error('Student ID is required')
+    }
+    // Fetch student document to get classId
+    const studentRef = doc(db, 'students', studentId)
+    const studentSnap = await getDoc(studentRef)
+
+    // Check if student exists
+    if (!studentSnap.exists()) {
+      throw new Error('Student not found')
+    }
+
+    const studentData = studentSnap.data()
+    const classId = studentData.classId
+
+    // Ensure student is enrolled in a class
+    if (!classId) {
+      throw new Error('Student is not enrolled in any class')
+    }
+
+    // Remove student from class
+    await classServices.removeStudentFromClass(classId, studentId)
+
+    // Update student's classId to null
+    await updateDoc(studentRef, {
+      classId: null,
+    })
+  },
 }
 
 export default StudentServices

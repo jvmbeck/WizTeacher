@@ -1,6 +1,6 @@
 <template>
   <q-page padding>
-    <q-btn to="/studentList" label="Voltar" color="primary" class="q-mb-md" />
+    <q-btn to="/AdminDashboard/studentList" label="Voltar" color="primary" class="q-mb-md" />
     <q-card>
       <q-card-section>
         <div class="text-h5">Detalhes do Aluno</div>
@@ -33,23 +33,17 @@
       <q-separator />
 
       <q-card-section>
-        <div class="text-subtitle1 q-mb-sm">Lições</div>
-        <q-list bordered>
-          <q-item v-for="lesson in lessons" :key="lesson.id" clickable>
-            <q-item-section>
-              <q-item-label><strong>ID:</strong> {{ lesson.id }}</q-item-label>
-              <q-item-label caption>
-                {{ lesson.notes ? `Anotações: ${lesson.notes}` : '' }}
-              </q-item-label>
-              <q-item-label caption>
-                {{ lesson.grade ? `Notas: ${lesson.grade}` : '' }}
-              </q-item-label>
-              <q-item-label caption>
-                {{ lesson.teacherName ? `Professor: ${lesson.teacherName}` : '' }}
-              </q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-list>
+        <q-table
+          class="excel-style-table"
+          title="Lições do Aluno"
+          :rows="lessons"
+          :columns="columns"
+          row-key="id"
+          flat
+          bordered
+          dense
+          separator="cell"
+        />
       </q-card-section>
     </q-card>
   </q-page>
@@ -67,6 +61,23 @@ const student = ref(null)
 const lessons = ref([])
 const absences = ref([])
 const loadingAbsences = ref(true)
+
+const columns = [
+  { name: 'id', label: 'ID', field: 'id', align: 'left' },
+  { name: 'lessonNumber', label: 'Lição', field: 'lessonNumber', align: 'left' },
+  {
+    name: 'completedAt',
+    label: 'Concluído em',
+    field: (row) =>
+      row.completedAt?.toDate
+        ? new Date(row.completedAt.toDate()).toLocaleDateString('pt-BR')
+        : '—',
+    align: 'left',
+  },
+  { name: 'notes', label: 'Anotações', field: 'notes', align: 'left' },
+  { name: 'grade', label: 'Notas', field: 'grade', align: 'left' },
+  { name: 'teacherName', label: 'Professor', field: 'teacherName', align: 'left' },
+]
 
 // Fetch Absences
 async function fetchStudentAbsences(studentId) {
@@ -130,3 +141,20 @@ watch(
   { immediate: true },
 )
 </script>
+
+<style scoped>
+.excel-style-table {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.excel-style-table .q-td,
+.excel-style-table .q-th {
+  border: 1px solid #ccc;
+  padding: 8px;
+  background-color: #fdfdfd;
+}
+
+.excel-style-table .q-tr:hover {
+  background-color: #e0f7fa;
+}
+</style>

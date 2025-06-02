@@ -87,6 +87,21 @@ const ClassServices = {
     })
   },
 
+  async addStudentToClassAdmin(classId, studentId) {
+    if (!classId || !studentId) throw new Error('Missing classId or studentId')
+
+    const classRef = doc(db, 'classes', classId)
+    const studentRef = doc(db, 'students', studentId)
+
+    await updateDoc(classRef, {
+      studentIds: arrayUnion(studentId),
+    })
+
+    await updateDoc(studentRef, {
+      classId: classId,
+    })
+  },
+
   async removeStudentFromClass(classId, studentId) {
     const classRef = doc(db, 'classes', classId)
     await updateDoc(classRef, {
