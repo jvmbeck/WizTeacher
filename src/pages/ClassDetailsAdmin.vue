@@ -147,6 +147,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
@@ -155,6 +156,7 @@ import ClassServices from '../services/ClassServices.js'
 import StudentServices from '../services/StudentServices.js'
 
 const route = useRoute()
+const $q = useQuasar()
 const classId = route.params.classId
 
 const isAddDialogOpen = ref(false)
@@ -198,14 +200,29 @@ function openAddStudentDialog() {
 }
 
 async function removeStudentFromClass(studentId) {
-  try {
-    await StudentServices.removeStudentFromClass(studentId)
-    isDialogOpen.value = false
-    selectedStudent.value = null
-    await fetchClassDetails(classData.value.studentIds || [])
-  } catch (err) {
-    console.error('Erro ao remover aluno da turma:', err)
-  }
+  $q.dialog({
+    title: 'Remover aluno',
+    message: 'Tem certeza que deseja remover este aluno da turma?',
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      await StudentServices.removeStudentFromClass(studentId)
+      isDialogOpen.value = false
+      selectedStudent.value = null
+      await fetchClassDetails(classData.value.studentIds || [])
+      $q.notify({
+        type: 'positive',
+        message: 'Aluno removido da turma com sucesso!',
+      })
+    } catch (err) {
+      console.error('Erro ao remover aluno da turma:', err)
+      $q.notify({
+        type: 'negative',
+        message: 'Erro ao remover aluno.',
+      })
+    }
+  })
 }
 
 const addStudentToClass = async () => {
