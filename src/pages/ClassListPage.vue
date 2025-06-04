@@ -4,7 +4,7 @@
       <q-btn to="/AdminDashboard" label="Início" />
       <q-input
         v-model="searchQuery"
-        label="Buscar por nome da turma ou professor"
+        label="Buscar por nome da turma, professor ou tipo de aula"
         outlined
         debounce="300"
         rounded
@@ -81,7 +81,10 @@ const filteredClassList = computed(() => {
   const q = searchQuery.value.toLowerCase()
 
   return classList.value.filter(
-    (c) => c.className?.toLowerCase().includes(q) || c.teacherName?.toLowerCase().includes(q),
+    (c) =>
+      c.className?.toLowerCase().includes(q) ||
+      c.teacherName?.toLowerCase().includes(q) ||
+      c.classType?.toLowerCase().includes(q),
   )
 })
 
@@ -114,7 +117,7 @@ async function fetchClassList() {
 const columns = [
   { name: 'className', label: 'Nome da Turma', align: 'left', field: 'className' },
   { name: 'teacherName', label: 'Professor', align: 'left', field: 'teacherName' },
-  { name: 'type', label: 'Tipo de Aula', align: 'left', field: 'type' },
+  { name: 'classType', label: 'Tipo de Aula', align: 'left', field: 'classType' },
   { name: 'studentCount', label: 'Qtd. de Alunos', align: 'center', field: 'studentCount' },
   { name: 'actions', label: 'Ações', align: 'center', field: 'actions' },
 ]
