@@ -2,28 +2,48 @@
   <q-dialog v-model="isOpen" persistent>
     <q-card style="min-width: 400px">
       <q-card-section>
-        <div class="text-h6">Create New Class</div>
+        <div class="text-h6">Criar nova turma</div>
       </q-card-section>
 
       <q-card-section class="q-gutter-md">
         <q-select
-          v-model="form.day"
-          label="Day of the Week"
+          v-model="form.classDays"
+          label="Dia da Semana"
           :options="daysOfWeek"
           emit-value
           map-options
+          multiple
+          dense
+        />
+        <q-input v-model="form.schedule" mask="time" label="Horário" lazy-rules>
+          <template v-slot:append>
+            <q-icon name="access_time" class="cursor-pointer">
+              <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                <q-time v-model="form.schedule">
+                  <div class="row items-center justify-end">
+                    <q-btn v-close-popup label="Close" color="primary" flat />
+                  </div>
+                </q-time>
+              </q-popup-proxy>
+            </q-icon>
+          </template>
+        </q-input>
+        <q-input
+          v-model.number="form.classDuration"
+          type="number"
+          label="Duração (minutos)"
+          min="30"
         />
         <q-select
-          v-model="form.type"
-          label="Class Type"
+          v-model="form.classType"
+          label="Tipo de Turma"
           :options="classTypes"
           emit-value
           map-options
         />
-        <q-time v-model="form.time" format24h label="Class Time" />
         <q-select
           v-model="form.teacherId"
-          label="Teacher"
+          label="Professor"
           :options="teacherOptions"
           option-label="name"
           option-value="id"
@@ -33,8 +53,8 @@
       </q-card-section>
 
       <q-card-actions align="right">
-        <q-btn flat label="Cancel" v-close-popup />
-        <q-btn color="primary" label="Create" @click="handleCreate" />
+        <q-btn flat label="Cancelar" v-close-popup />
+        <q-btn color="primary" label="Criar" @click="handleCreate" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -58,9 +78,11 @@ watch(
 watch(isOpen, (val) => emit('update:modelValue', val))
 
 const form = ref({
-  day: '',
-  time: '',
+  classDays: [],
+  schedule: '',
   teacherId: '',
+  classType: '',
+  classDuration: 120, // default duration in minutes
 })
 
 const daysOfWeek = [
@@ -90,14 +112,7 @@ const fetchTeachers = async () => {
 
 const handleCreate = async () => {
   try {
-    const newClass = {
-      classDay: form.value.day,
-      schedule: form.value.time,
-      teacherId: form.value.teacherId,
-      type: form.value.type,
-    }
-
-    await ClassServices.createClass(newClass)
+    await ClassServices.createClass(form.value)
     emit('classCreated') // notify parent
     isOpen.value = false // close dialog
   } catch (err) {
