@@ -6,10 +6,10 @@
       <q-card-section>
         <div class="text-h5">Detalhes da Turma</div>
         <div v-if="classData">
-          <p><strong>Nome:</strong> {{ classData.className }}</p>
           <p><strong>Dia:</strong> {{ classData.classDay }}</p>
           <p><strong>Horário:</strong> {{ classData.schedule }}</p>
           <p><strong>Professor:</strong> {{ teacherName }}</p>
+          <p><strong>Tipo de Turma:</strong> {{ classData.type }}</p>
           <p><strong>Quantidade de Alunos:</strong> {{ students.length }}</p>
         </div>
       </q-card-section>
