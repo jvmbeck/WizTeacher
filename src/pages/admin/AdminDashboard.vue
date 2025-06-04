@@ -1,8 +1,8 @@
 <template>
   <div class="admin-dashboard">
-    <q-btn to="AdminDashboard/studentList">Student</q-btn>
-    <q-btn to="AdminDashboard/teacherList">Teacher</q-btn>
-    <q-btn to="AdminDashboard/classList">Classes</q-btn>
+    <q-btn to="AdminDashboard/studentList">Alunos</q-btn>
+    <q-btn to="AdminDashboard/teacherList">Professores</q-btn>
+    <q-btn to="AdminDashboard/classList">Turmas</q-btn>
   </div>
   <SignOutButton></SignOutButton>
 </template>
