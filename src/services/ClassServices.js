@@ -15,18 +15,18 @@ import { db } from '../key/configKey.js' // Adjust the path as necessary
 //import { useUserStore } from '../stores/userStore.js' // Adjust the path as necessary
 
 // helper to convert a class name into a Firestore-safe ID
-function generateClassId(classDay, schedule) {
-  const name = classDay + '_' + schedule
+function generateClassId(classDay, schedule, type) {
+  const name = classDay + ' ' + schedule + ' - ' + type
   return name
 }
 
 const ClassServices = {
-  async createClass({ classDay, schedule, teacherId }) {
-    if (!classDay || !schedule || !teacherId) {
+  async createClass({ classDay, schedule, teacherId, type }) {
+    if (!classDay || !schedule || !teacherId || !type) {
       throw new Error('Missing required fields')
     }
 
-    const classId = generateClassId(classDay, schedule)
+    const classId = generateClassId(classDay, schedule, type)
     const classRef = doc(db, 'classes', classId)
 
     const existing = await getDoc(classRef)
@@ -34,11 +34,15 @@ const ClassServices = {
       throw new Error('Class already exists')
     }
 
+    const className = `${classDay} ${schedule} - ${type}`
+
     const classData = {
+      className,
       classDay,
       schedule,
       teacherId,
       studentIds: [],
+      type,
     }
 
     await setDoc(classRef, classData)
