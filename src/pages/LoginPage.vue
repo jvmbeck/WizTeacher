@@ -1,39 +1,31 @@
 <template>
-  <div class="login-component">
-    <h2>Login</h2>
-    <form @submit.prevent="handleSubmit">
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" v-model="email" placeholder="Enter your email" required />
-      </div>
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input
-          type="password"
-          id="password"
-          v-model="password"
-          placeholder="Enter your password"
-          required
+  <div class="login-page">
+    <q-card class="login-card">
+      <div class="text-h4 q-ma-xl">Bem-vindo ao <span class="text-blue-10">WizTeacher</span></div>
+      <div class="text-body1 text-weight-light">Faça login para continuar</div>
+
+      <q-form @submit="handleLogin" @reset="onReset" class="q-gutter-md">
+        <q-input
+          v-model="email"
+          type="email"
+          label="Digite seu E-mail *"
+          lazy-rules
+          :rules="[(val) => (val && val.length > 0) || 'Por favor, digite seu e-mail']"
         />
-      </div>
-      <div class="form-actions">
-        <button type="button" @click="resetPassword">Reset Password</button>
-        <button type="submit" @click="handleLogin">Login</button>
-      </div>
-    </form>
 
-    <!-- Quasar Dialog -->
-    <q-dialog v-model="showDialog" backdrop-filter="hue-rotate(120deg) blur(5px)">
-      <q-card>
-        <q-card-section>
-          <div class="text-h6">{{ dialogMessage }}</div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="OK" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+        <q-input
+          type="password"
+          v-model="password"
+          label="Digite sua Senha *"
+          lazy-rules
+          :rules="[(val) => (val && val.length > 0) || 'Por favor, digite sua senha']"
+        />
+        <div class="buttons-container">
+          <q-btn label="Redefinir senha" type="reset" color="primary" flat class="q-ml-sm" />
+          <q-btn label="Login" type="submit" color="primary" />
+        </div>
+      </q-form>
+    </q-card>
   </div>
 </template>
 
@@ -47,8 +39,6 @@ export default {
     return {
       email: '',
       password: '',
-      showDialog: false, // Controls the visibility of the popup
-      dialogMessage: '', // Message to display in the popup
     }
   },
   methods: {
@@ -77,81 +67,25 @@ export default {
 </script>
 
 <style scoped>
-.login-component {
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-}
-
-.form-group {
-  margin-bottom: 15px;
-}
-
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-input {
-  width: 100%;
-  padding: 8px;
-  box-sizing: border-box;
-}
-
-.form-actions {
+.login-page {
   display: flex;
-  justify-content: space-between;
-}
-
-button {
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button[type='submit'] {
-  background-color: #007bff;
-  color: white;
-}
-
-button[type='button'] {
-  background-color: #6c757d;
-  color: white;
-}
-
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f0f0f0;
 }
 
-.dialog {
-  background-color: white;
+.login-card {
+  width: 28vw;
   padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  text-align: center;
+  border-radius: 5%;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 
-.dialog button {
-  margin-top: 10px;
-  padding: 10px 15px;
-  border: none;
-  border-radius: 4px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
+.buttons-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 </style>
