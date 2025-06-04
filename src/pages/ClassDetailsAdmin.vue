@@ -3,13 +3,15 @@
     <q-btn to="/AdminDashboard/classList" label="Voltar" color="primary" class="q-mb-md" />
 
     <q-card>
+      <q-btn label="Editar Turma" icon="edit" @click="editDialog = true" class="q-mb-md" />
       <q-card-section>
         <div class="text-h5">Detalhes da Turma</div>
         <div v-if="classData">
-          <p><strong>Dia:</strong> {{ classData.classDay }}</p>
+          <p><strong>Dias:</strong> {{ classData.classDays.join(', ') }}</p>
           <p><strong>Horário:</strong> {{ classData.schedule }}</p>
+          <p><strong>Duração:</strong> {{ classData.classDuration }} minutos</p>
           <p><strong>Professor:</strong> {{ teacherName }}</p>
-          <p><strong>Tipo de Turma:</strong> {{ classData.type }}</p>
+          <p><strong>Tipo de Turma:</strong> {{ classData.classType }}</p>
           <p><strong>Quantidade de Alunos:</strong> {{ students.length }}</p>
         </div>
       </q-card-section>
@@ -34,7 +36,6 @@
           >
             <q-item-section>
               <q-item-label>{{ student.name }}</q-item-label>
-
               <q-item-label caption>ID: {{ student.id }}</q-item-label>
             </q-item-section>
           </q-item>
@@ -142,6 +143,14 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <EditClassDialog
+      v-model="editDialog"
+      :class-id="classId"
+      :class-data="classData"
+      @classUpdated="fetchClassDetails"
+      @classDeleted="fetchClassDetails"
+    />
   </q-page>
 </template>
 
@@ -154,11 +163,13 @@ import { db } from '../key/configKey.js'
 import dayjs from 'dayjs'
 import ClassServices from '../services/ClassServices.js'
 import StudentServices from '../services/StudentServices.js'
+import EditClassDialog from '../components/EditClassDialog.vue'
 
 const route = useRoute()
 const $q = useQuasar()
 const classId = route.params.classId
 
+const editDialog = ref(false)
 const isAddDialogOpen = ref(false)
 const isDialogOpen = ref(false)
 const selectedStudent = ref(null)
@@ -268,7 +279,7 @@ async function fetchClassDetails() {
     await fetchTeacherName(classData.value.teacherId)
     await fetchStudents(classData.value.studentIds || [])
   } else {
-    console.error('Classe não encontrada')
+    console.error('Turma não encontrada')
   }
 }
 
