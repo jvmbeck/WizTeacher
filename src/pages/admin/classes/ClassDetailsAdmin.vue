@@ -159,11 +159,11 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../../../key/configKey.js'
+import { db } from 'src/key/configKey.js'
 import dayjs from 'dayjs'
-import ClassServices from '../../../services/ClassServices.js'
-import StudentServices from '../../../services/StudentServices.js'
-import EditClassDialog from '../components/EditClassDialog.vue'
+import ClassServices from 'src/services/ClassServices.js'
+import StudentServices from 'src/services/StudentServices.js'
+import EditClassDialog from 'src/components/EditClassDialog.vue'
 
 const route = useRoute()
 const $q = useQuasar()

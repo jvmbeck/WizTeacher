@@ -58,7 +58,7 @@
       </q-table>
     </q-card>
 
-    <AddStudentDialog v-model="isDialogOpen" @create="handleCreateStudent"></AddStudentDialog>
+    <CreateStudentDialog v-model="isDialogOpen" @create="handleCreateStudent"></CreateStudentDialog>
     <UpdateStudentDialog
       v-model="isUpdateDialogOpen"
       :student="selectedStudent"
@@ -74,8 +74,8 @@ import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
-import AddStudentDialog from '../components/AddStudentDialog.vue'
-import UpdateStudentDialog from '../components/UpdateStudentDialog.vue'
+import CreateStudentDialog from 'src/components/CreateStudentDialog.vue'
+import UpdateStudentDialog from 'src/components/UpdateStudentDialog.vue'
 import StudentServices from 'src/services/StudentServices'
 
 const router = useRouter()

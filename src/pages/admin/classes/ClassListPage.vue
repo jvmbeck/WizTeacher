@@ -56,10 +56,10 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { db } from '../../../key/configKey'
+import { db } from 'src/key/configKey'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { useRouter } from 'vue-router'
-import CreateClassDialog from '../components/CreateClassDialog.vue'
+import CreateClassDialog from 'src/components/CreateClassDialog.vue'
 
 const router = useRouter()
 const classList = ref([])
