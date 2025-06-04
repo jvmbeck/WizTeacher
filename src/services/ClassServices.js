@@ -1,7 +1,6 @@
 // services/classes.js
 import {
   doc,
-  setDoc,
   getDoc,
   collection,
   getDocs,
@@ -10,39 +9,31 @@ import {
   updateDoc,
   arrayRemove,
   arrayUnion,
+  addDoc,
+  deleteDoc,
 } from 'firebase/firestore'
-import { db } from '../key/configKey.js' // Adjust the path as necessary
-//import { useUserStore } from '../stores/userStore.js' // Adjust the path as necessary
-
-// helper to convert a class name into a Firestore-safe ID
-function generateClassId(classDay, schedule) {
-  const name = classDay + '_' + schedule
-  return name
-}
+import { db } from '../key/configKey.js'
+//import { useUserStore } from '../stores/userStore.js'
 
 const ClassServices = {
-  async createClass({ classDay, schedule, teacherId }) {
-    if (!classDay || !schedule || !teacherId) {
+  async createClass({ classDays, schedule, teacherId, classType, classDuration }) {
+    if (!classDays || !schedule || !teacherId || !classType || !classDuration) {
       throw new Error('Missing required fields')
     }
 
-    const classId = generateClassId(classDay, schedule)
-    const classRef = doc(db, 'classes', classId)
-
-    const existing = await getDoc(classRef)
-    if (existing.exists()) {
-      throw new Error('Class already exists')
-    }
+    const className = `${classDays.join('-')} ${schedule} - ${classType}`
 
     const classData = {
-      classDay,
+      className,
+      classDays,
       schedule,
       teacherId,
       studentIds: [],
+      classType,
+      classDuration,
     }
 
-    await setDoc(classRef, classData)
-    return classId
+    await addDoc(collection(db, 'classes'), classData)
   },
 
   async fetchAllClasses() {
@@ -55,7 +46,6 @@ const ClassServices = {
 
     return classes
   },
-
   async fetchClassesByTeacher(teacherId) {
     const q = query(collection(db, 'classes'), where('teacherId', '==', teacherId))
     const snapshot = await getDocs(q)
@@ -67,6 +57,26 @@ const ClassServices = {
 
     return classes
   },
+
+  async updateClassData(classId, classData) {
+    if (!classId || !classData) {
+      throw new Error('Missing classId or classData')
+    }
+
+    const className = classData.classDay + ' ' + classData.schedule + ' - ' + classData.classType
+    classData.className = className
+    console.log('Updating class data for classId:', classId, 'with data:', classData)
+
+    const classRef = doc(db, 'classes', classId)
+    const existing = await getDoc(classRef)
+
+    if (!existing.exists()) {
+      throw new Error('Class does not exist')
+    }
+
+    await updateDoc(classRef, classData)
+  },
+
   async updateClassStudentRefs(oldClassId, newClassId, studentId) {
     if (oldClassId) {
       await updateDoc(doc(db, 'classes', oldClassId), {
@@ -78,6 +88,30 @@ const ClassServices = {
         students: arrayUnion(studentId),
       })
     }
+  },
+
+  async deleteClass(classId) {
+    if (!classId) throw new Error('Missing classId')
+
+    const classRef = doc(db, 'classes', classId)
+    const classSnap = await getDoc(classRef)
+
+    if (!classSnap.exists()) {
+      throw new Error('Class does not exist')
+    }
+
+    // Delete all students in this class
+    const studentIds = classSnap.data().studentIds || []
+    await Promise.all(
+      studentIds.map((studentId) => {
+        return updateDoc(doc(db, 'students', studentId), {
+          classId: null,
+        })
+      }),
+    )
+
+    // Delete the class document
+    await deleteDoc(classRef)
   },
 
   async addStudentToClass(classId, studentId) {
