@@ -56,10 +56,10 @@
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc } from 'firebase/firestore'
-import { db } from '../key/configKey.js'
-import StudentServices from '../services/StudentServices.js'
+import { db } from '../../key/configKey.js'
+import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
-import BookStructure from '../data/bookStructure.json'
+import BookStructure from '../../data/bookStructure.json'
 
 const route = useRoute()
 const classId = route.params.id
