@@ -9,9 +9,8 @@
         <q-input v-model="editedData.name" label="Name" outlined class="q-mb-sm" />
         <q-input v-model="editedData.book" label="Book" outlined class="q-mb-sm" />
         <q-input
-          v-model.number="editedData.currentLesson"
+          v-model="editedData.currentLesson"
           label="Current Lesson"
-          type="number"
           outlined
           class="q-mb-sm"
         />
