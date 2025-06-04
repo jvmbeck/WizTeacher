@@ -10,8 +10,12 @@
         @click="$router.push({ name: 'ClassDetails', params: { id: classItem.id } })"
       >
         <q-item-section>
-          <q-item-label><strong>Day:</strong> {{ classItem.classDay }}</q-item-label>
-          <q-item-label><strong>Schedule:</strong> {{ classItem.schedule }}</q-item-label>
+          <q-item-label
+            ><strong> {{ classItem.className }}</strong>
+          </q-item-label>
+          <q-item-label caption>
+            Quantidade de alunos: {{ classItem.studentIds.length }}
+          </q-item-label>
         </q-item-section>
       </q-item>
     </q-list>
