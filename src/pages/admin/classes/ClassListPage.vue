@@ -22,13 +22,16 @@
 
     <q-card>
       <q-card-section>
+        <div class="text-h6">Lista de Turmas</div>
+      </q-card-section>
+      <q-card-section>
         <q-table
-          title="Turmas"
           :rows="filteredClassList"
           :columns="columns"
           row-key="id"
           flat
           bordered
+          :filter="searchQuery"
           :loading="loading"
           loading-label="Carregando turmas..."
           separator="cell"
