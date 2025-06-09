@@ -57,6 +57,18 @@ const ClassServices = {
 
     return classes
   },
+  async fetchClassById(classId) {
+    if (!classId) throw new Error('Missing classId')
+
+    const classRef = doc(db, 'classes', classId)
+    const classSnap = await getDoc(classRef)
+
+    if (!classSnap.exists()) {
+      throw new Error('Class does not exist')
+    }
+
+    return { id: classSnap.id, ...classSnap.data() }
+  },
 
   async updateClassData(classId, classData) {
     if (!classId || !classData) {

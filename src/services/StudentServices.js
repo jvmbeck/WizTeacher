@@ -138,13 +138,13 @@ const StudentServices = {
       // Check if absence already exists
       const absenceDoc = await transaction.get(absenceRef)
       if (absenceDoc.exists()) {
-        throw new Error('Absence already recorded for today.')
+        throw new Error('Aluno já foi marcado como ausente hoje.')
       }
 
       // Read student document
       const studentDoc = await transaction.get(studentRef)
       if (!studentDoc.exists()) {
-        throw new Error('Student not found.')
+        throw new Error('Aluno não encontrado.')
       }
 
       const currentAbsences = studentDoc.data().totalAbsences || 0

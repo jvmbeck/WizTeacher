@@ -25,40 +25,42 @@
         <div class="text-h6">Lista de alunos</div>
       </q-card-section>
 
-      <q-table
-        :rows="filteredStudents"
-        :columns="columns"
-        row-key="id"
-        flat
-        bordered
-        :filter="searchQuery"
-        :pagination="{ rowsPerPage: 0 }"
-        separator="cell"
-      >
-        <template v-slot:body-cell-actions="props">
-          <q-td class="text-right">
-            <q-btn
-              icon="info"
-              color="secondary"
-              round
-              dense
-              @click="goToStudentDetails(props.row.uid)"
-              class="q-ml-xs"
-            />
-            <q-btn flat icon="edit" @click="openEditDialog(props.row)" class="q-ml-sm" />
-            <q-btn
-              flat
-              icon="delete"
-              color="negative"
-              @click="confirmDelete(props.row)"
-              class="q-ml-sm"
-            />
-          </q-td>
-        </template>
-      </q-table>
+      <q-card-section>
+        <q-table
+          :rows="filteredStudents"
+          :columns="columns"
+          row-key="id"
+          flat
+          bordered
+          :filter="searchQuery"
+          :pagination="{ rowsPerPage: 0 }"
+          separator="cell"
+        >
+          <template v-slot:body-cell-actions="props">
+            <q-td class="text-right">
+              <q-btn
+                icon="info"
+                color="secondary"
+                round
+                dense
+                @click="goToStudentDetails(props.row.uid)"
+                class="q-ml-xs"
+              />
+              <q-btn flat icon="edit" @click="openEditDialog(props.row)" class="q-ml-sm" />
+              <q-btn
+                flat
+                icon="delete"
+                color="negative"
+                @click="confirmDelete(props.row)"
+                class="q-ml-sm"
+              />
+            </q-td>
+          </template>
+        </q-table>
+      </q-card-section>
     </q-card>
 
-    <AddStudentDialog v-model="isDialogOpen" @create="handleCreateStudent"></AddStudentDialog>
+    <CreateStudentDialog v-model="isDialogOpen" @create="handleCreateStudent"></CreateStudentDialog>
     <UpdateStudentDialog
       v-model="isUpdateDialogOpen"
       :student="selectedStudent"
@@ -74,8 +76,8 @@ import { onMounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
-import AddStudentDialog from '../components/AddStudentDialog.vue'
-import UpdateStudentDialog from '../components/UpdateStudentDialog.vue'
+import CreateStudentDialog from 'src/components/CreateStudentDialog.vue'
+import UpdateStudentDialog from 'src/components/UpdateStudentDialog.vue'
 import StudentServices from 'src/services/StudentServices'
 
 const router = useRouter()
@@ -149,10 +151,6 @@ const { classes } = storeToRefs(classStore)
 onMounted(async () => {
   await classStore.fetchClasses()
   await studentStore.fetchStudents()
-
-  console.log('Classes:', classes.value)
-  console.log('ClassMap:', classMap.value)
-  console.log('Students:', students.value)
 })
 
 const classMap = computed(() => {

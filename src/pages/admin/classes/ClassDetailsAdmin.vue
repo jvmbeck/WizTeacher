@@ -66,7 +66,7 @@
           <p><strong>Nome:</strong> {{ selectedStudent.name }}</p>
           <p><strong>Livro:</strong> {{ selectedStudent.book }}</p>
           <p><strong>Lição Atual:</strong> {{ selectedStudent.currentLesson }}</p>
-          <p><strong>ID da Turma:</strong> {{ selectedStudent.classId }}</p>
+          <p v-if="classInfo"><strong>Nome da Turma:</strong> {{ classInfo.className }}</p>
         </q-card-section>
 
         <q-separator />
@@ -144,7 +144,7 @@
       </q-card>
     </q-dialog>
 
-    <EditClassDialog
+    <UpdateClassDialog
       v-model="editDialog"
       :class-id="classId"
       :class-data="classData"
@@ -159,11 +159,11 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRoute } from 'vue-router'
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from '../../../key/configKey.js'
+import { db } from 'src/key/configKey.js'
 import dayjs from 'dayjs'
-import ClassServices from '../../../services/ClassServices.js'
-import StudentServices from '../../../services/StudentServices.js'
-import EditClassDialog from '../components/EditClassDialog.vue'
+import ClassServices from 'src/services/ClassServices.js'
+import StudentServices from 'src/services/StudentServices.js'
+import UpdateClassDialog from 'src/components/UpdateClassDialog.vue'
 
 const route = useRoute()
 const $q = useQuasar()
@@ -182,6 +182,7 @@ const students = ref([])
 const teacherName = ref('')
 const selectedStudentId = ref(null)
 const availableStudents = ref([]) // { label: 'Name', value: 'id' }
+const classInfo = ref(null)
 
 function formatDate(timestamp) {
   if (!timestamp) return ''
@@ -198,6 +199,7 @@ async function openStudentDialog(studentId) {
     selectedStudent.value.id = docSnap.id // Add the document ID to the student object
     await fetchAbsences(studentId)
     await fetchLessons(studentId)
+    classInfo.value = await ClassServices.fetchClassById(selectedStudent.value.classId)
     isDialogOpen.value = true
   } else {
     console.error('Aluno não encontrado.')

@@ -1,0 +1,4 @@
+- Fix student creation to contain the ClassIds Array rather than a string, and check for inconsistencies in the update student and add student to Class
+- Add dialog to signal that student was marked absent succesfully
+- Add check to know which student was marked absent
+- In ClassDetailsAdmin, change classID to class name

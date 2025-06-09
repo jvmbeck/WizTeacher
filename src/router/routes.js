@@ -58,6 +58,11 @@ const routes = [
         name: 'classDetailsAdmin',
         component: () => import('src/pages/admin/classes/ClassDetailsAdmin.vue'),
       },
+      {
+        path: 'teacherList',
+        name: 'teacherList',
+        component: () => import('src/pages/admin/teachers/TeacherListPage.vue'),
+      },
     ],
   },
 

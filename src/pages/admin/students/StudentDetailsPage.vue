@@ -53,7 +53,7 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore'
-import { db } from '../../../key/configKey.js'
+import { db } from 'src/key/configKey.js'
 
 const route = useRoute()
 

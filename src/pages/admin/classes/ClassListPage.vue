@@ -22,13 +22,16 @@
 
     <q-card>
       <q-card-section>
+        <div class="text-h6">Lista de Turmas</div>
+      </q-card-section>
+      <q-card-section>
         <q-table
-          title="Turmas"
           :rows="filteredClassList"
           :columns="columns"
           row-key="id"
           flat
           bordered
+          :filter="searchQuery"
           :loading="loading"
           loading-label="Carregando turmas..."
           separator="cell"
@@ -56,10 +59,10 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { db } from '../../../key/configKey'
+import { db } from 'src/key/configKey'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { useRouter } from 'vue-router'
-import CreateClassDialog from '../components/CreateClassDialog.vue'
+import CreateClassDialog from 'src/components/CreateClassDialog.vue'
 
 const router = useRouter()
 const classList = ref([])
