@@ -1,24 +1,17 @@
 <template>
   <div class="q-pa-md">
+    <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
+
     <h5>{{ classInfo?.className }}</h5>
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
-          {{ student.name }}
+          {{ student.name }} - {{ student.currentLesson }}/{{
+            getNextLessonLabel(student.currentLesson, student.book)
+          }}
+          - {{ student.book }}
         </q-item-section>
-        <q-item-label>
-          <div>
-            {{ student.currentLesson }}
-          </div>
-          <div
-            v-if="
-              getNextLessonLabel(student.currentLesson, student.book) !== null &&
-              student.currentLesson !== null
-            "
-          >
-            / {{ getNextLessonLabel(student.currentLesson, student.book) }}
-          </div>
-        </q-item-label>
+
         <q-icon v-if="student.currentLesson == null" name="check_circle" color="green" size="md" />
         <q-item-section side> </q-item-section>
         <q-btn label="Edit Lesson" @click="openLessonForm(student.uid)" />
@@ -40,8 +33,6 @@
     </q-dialog>
   </div>
 
-  <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
-
   <!-- Import the SaveLessonForm component -->
   <SaveLessonForm
     v-model="isFormOpen"
@@ -60,6 +51,8 @@ import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
+import { useQuasar } from 'quasar'
+const $q = useQuasar()
 
 const route = useRoute()
 const classId = route.params.id
@@ -94,12 +87,34 @@ const handleLessonSaved = async () => {
 }
 
 const markAbsent = async (studentId) => {
-  try {
-    await StudentServices.markStudentAbsent(studentId, classId)
-    console.log('Student marked absent!')
-  } catch (err) {
-    console.error('Failed to mark absence:', err.message)
-  }
+  // Show confirmation dialog before marking absent
+  const confirmed = $q
+    .dialog({
+      title: 'Confirmar Ausência',
+      ok: 'Sim',
+      cancel: 'Não',
+      message: 'Tem certeza de que deseja marcar este aluno como ausente?',
+      persistent: true,
+    })
+    .onOk(async () => {
+      try {
+        await StudentServices.markStudentAbsent(studentId, classId)
+        $q.notify({
+          type: 'positive',
+          message: 'Aluno marcado como ausente com sucesso!',
+        })
+      } catch (err) {
+        $q.notify({
+          type: 'negative',
+          message: `Erro ao marcar ausência: ${err.message}`,
+        })
+        console.error('Failed to mark absence:', err.message)
+      }
+    })
+    .onOk(() => true)
+    .onCancel(() => false)
+
+  if (!confirmed) return
 }
 
 const fetchStudentList = async () => {
