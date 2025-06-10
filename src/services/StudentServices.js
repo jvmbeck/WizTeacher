@@ -71,8 +71,6 @@ const StudentServices = {
 
     const fullLessonInfo = {
       ...lessonData,
-      book,
-      lessonNumber,
       studentId,
       completedAt: serverTimestamp(),
       teacherId: user.uid,
