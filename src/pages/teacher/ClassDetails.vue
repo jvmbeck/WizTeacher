@@ -2,7 +2,16 @@
   <div class="q-pa-md">
     <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
 
-    <h5>{{ classInfo?.className }}</h5>
+    <div class="class-header q-mb-md">
+      <h5>{{ classInfo?.className }}</h5>
+      <q-btn
+        color="primary"
+        icon="content_copy"
+        label="Copiar todos"
+        @click="copyAllStudentsInfo"
+      />
+    </div>
+
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
@@ -32,13 +41,7 @@
         <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
       </q-item>
     </q-list>
-    <q-btn
-      color="primary"
-      icon="content_copy"
-      label="Copiar todos"
-      class="q-mt-md"
-      @click="copyAllStudentsInfo"
-    />
+
     <q-dialog v-model="lessonDialog" seamless position="bottom">
       <q-card style="width: 350px">
         <q-card-section class="row items-center no-wrap">
@@ -211,3 +214,12 @@ onMounted(async () => {
   await fetchStudentList()
 })
 </script>
+
+<style scoped>
+.class-header {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+}
+</style>
