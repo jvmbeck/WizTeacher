@@ -15,11 +15,54 @@
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
-          {{ student.name }} - {{ student.currentLesson
-          }}<span v-if="getNextLessonLabel(student.currentLesson, student.book)"
-            >/{{ getNextLessonLabel(student.currentLesson, student.book) }}</span
-          >
-          - {{ student.book }}
+          {{ student.name }} -
+          <span>
+            <span v-if="student.hasCurrentLessonSaved" class="lesson-saved">
+              {{ student.currentLesson }}
+              <q-icon
+                name="check_circle"
+                color="green"
+                size="xs"
+                class="q-ml-xs"
+                title="Primeira lição salva"
+              />
+            </span>
+
+            <span v-else class="lesson-planned">
+              {{ student.currentLesson }}
+              <q-icon
+                name="hourglass_empty"
+                color="grey"
+                size="xs"
+                class="q-ml-xs"
+                title="Próxima lição (não salva)"
+              />
+            </span>
+            <span v-if="getNextLessonLabel(student.currentLesson, student.book)">
+              /
+              <span v-if="student.hasNextLessonSaved" class="lesson-saved">
+                {{ getNextLessonLabel(student.currentLesson, student.book) }}
+                <q-icon
+                  name="check_circle"
+                  color="green"
+                  size="xs"
+                  class="q-ml-xs"
+                  title="Segunda lição salva"
+                />
+              </span>
+              <span v-else class="lesson-planned">
+                {{ getNextLessonLabel(student.currentLesson, student.book) }}
+                <q-icon
+                  name="hourglass_empty"
+                  color="grey"
+                  size="xs"
+                  class="q-ml-xs"
+                  title="Próxima lição (não salva)"
+                />
+              </span>
+            </span>
+            - {{ student.book }}
+          </span>
         </q-item-section>
         <q-btn
           flat
@@ -113,26 +156,35 @@ const openLessonForm = (studentId) => {
   isFormOpen.value = true
 }
 
-const onLessonSaved = ({ studentId, newLessonNumber }) => {
-  handleLessonSaved(studentId, newLessonNumber)
+const onLessonSaved = ({ studentId }) => {
+  handleLessonSaved(studentId)
 }
 
-const handleLessonSaved = (studentId, newLessonNumber) => {
-  console.log(`Lesson saved for student ${studentId}: ${newLessonNumber}`)
-
+const handleLessonSaved = async (studentId) => {
   // Find the student in the local array
   const student = students.value.find((s) => s.uid === studentId)
   if (student) {
-    student.currentLesson = newLessonNumber
+    // Do NOT update student.currentLesson here!
+
+    // Always recalculate completion flags
+    student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
+      student,
+      student.book,
+      student.currentLesson,
+    )
+    const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
+    student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
+      student,
+      student.book,
+      nextLesson,
+    )
   }
-  // Show a notification
   $q.notify({
     type: 'positive',
     message: 'Nota adicionada com sucesso!',
     icon: 'check_circle',
   })
 }
-
 const markAbsent = async (studentId) => {
   // Show confirmation dialog before marking absent
   const confirmed = $q
@@ -223,6 +275,20 @@ const fetchStudentList = async () => {
     })
 
     students.value = sortedStudents
+
+    for (const student of sortedStudents) {
+      student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
+        student,
+        student.book,
+        student.currentLesson,
+      )
+      const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
+      student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
+        student,
+        student.book,
+        nextLesson,
+      )
+    }
   }
 }
 
@@ -246,5 +312,10 @@ onMounted(async () => {
   flex-direction: row;
   align-items: baseline;
   gap: 10px;
+}
+
+.lesson-saved {
+  color: #21ba45; /* Quasar green */
+  font-weight: bold;
 }
 </style>
