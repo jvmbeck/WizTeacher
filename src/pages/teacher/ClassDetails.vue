@@ -11,13 +11,34 @@
           }}
           - {{ student.book }}
         </q-item-section>
-
+        <q-btn
+          flat
+          round
+          icon="content_copy"
+          size="sm"
+          @click="copyStudentInfo(student)"
+          :title="`Copiar info de ${student.name}`"
+        />
         <q-icon v-if="student.currentLesson == null" name="check_circle" color="green" size="md" />
-        <q-item-section side> </q-item-section>
+        <q-icon
+          v-if="student.isAbsentToday"
+          name="event_busy"
+          color="red"
+          size="sm"
+          class="q-ml-xs"
+          title="Ausente hoje"
+        />
         <q-btn label="Edit Lesson" @click="openLessonForm(student.uid)" />
         <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
       </q-item>
     </q-list>
+    <q-btn
+      color="primary"
+      icon="content_copy"
+      label="Copiar todos"
+      class="q-mt-md"
+      @click="copyAllStudentsInfo"
+    />
     <q-dialog v-model="lessonDialog" seamless position="bottom">
       <q-card style="width: 350px">
         <q-card-section class="row items-center no-wrap">
@@ -46,12 +67,14 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
+import {} from 'firebase/firestore'
+
 const $q = useQuasar()
 
 const route = useRoute()
@@ -63,6 +86,35 @@ const students = ref([])
 const selectedStudentId = ref(null)
 const selectedStudent = ref(null)
 const isFormOpen = ref(false)
+
+const copyStudentInfo = (student) => {
+  const text = `${student.name} - ${student.currentLesson}/${getNextLessonLabel(student.currentLesson, student.book)} - ${student.book}`
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      $q.notify({ type: 'positive', message: 'Copiado para a área de transferência!' })
+    })
+    .catch(() => {
+      $q.notify({ type: 'negative', message: 'Falha ao copiar.' })
+    })
+}
+
+const copyAllStudentsInfo = () => {
+  const text = students.value
+    .map(
+      (student) =>
+        `${student.name} - ${student.currentLesson}/${getNextLessonLabel(student.currentLesson, student.book)} - ${student.book}`,
+    )
+    .join('\n')
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      $q.notify({ type: 'positive', message: 'Todos os alunos copiados!' })
+    })
+    .catch(() => {
+      $q.notify({ type: 'negative', message: 'Falha ao copiar.' })
+    })
+}
 
 const openLessonForm = (studentId) => {
   const student = students.value.find((s) => s.uid === studentId)
@@ -103,6 +155,7 @@ const markAbsent = async (studentId) => {
           type: 'positive',
           message: 'Aluno marcado como ausente com sucesso!',
         })
+        await fetchStudentList() // Refresh to update absence icons
       } catch (err) {
         $q.notify({
           type: 'negative',
@@ -124,7 +177,24 @@ const fetchStudentList = async () => {
   classInfo.value = classSnap.data()
 
   if (classInfo.value.studentIds?.length) {
-    students.value = await StudentServices.fetchStudentsByIds(classInfo.value.studentIds)
+    // Fetch students
+    const studentList = await StudentServices.fetchStudentsByIds(classInfo.value.studentIds)
+
+    // Fetch today's absences for this class
+    const today = new Date().toISOString().split('T')[0]
+    const absencesQuery = query(
+      collection(db, 'absences'),
+      where('classId', '==', classId),
+      where('date', '==', today),
+    )
+    const absencesSnap = await getDocs(absencesQuery)
+    const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
+
+    // Annotate students with absence status
+    students.value = studentList.map((student) => ({
+      ...student,
+      isAbsentToday: absentStudentIds.includes(student.uid),
+    }))
   }
 }
 
