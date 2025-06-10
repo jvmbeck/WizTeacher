@@ -64,7 +64,7 @@
     :student-id="selectedStudentId"
     :student-name="selectedStudent?.name"
     :class-id="classId"
-    @lessonSaved="handleLessonSaved"
+    @lessonSaved="onLessonSaved"
   />
 </template>
 
@@ -128,17 +128,23 @@ const openLessonForm = (studentId) => {
   isFormOpen.value = true
 }
 
-const handleLessonSaved = async () => {
-  console.log('Lesson saved!')
+const onLessonSaved = ({ studentId, newLessonNumber }) => {
+  handleLessonSaved(studentId, newLessonNumber)
+}
+
+const handleLessonSaved = (studentId, newLessonNumber) => {
+  console.log(`Lesson saved for student ${studentId}: ${newLessonNumber}`)
+
+  // Find the student in the local array
+  const student = students.value.find((s) => s.uid === studentId)
+  if (student) {
+    student.currentLesson = newLessonNumber
+  }
+  // Optionally, show a notification or dialog
   lessonDialog.value = true
   setTimeout(() => {
     lessonDialog.value = false
   }, 2000)
-  // refresh student data
-  console.log('Refreshing student data...')
-  setTimeout(() => {
-    fetchStudentList()
-  }, 1000)
 }
 
 const markAbsent = async (studentId) => {
@@ -194,10 +200,43 @@ const fetchStudentList = async () => {
     const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
 
     // Annotate students with absence status
-    students.value = studentList.map((student) => ({
+    let sortedStudents = studentList.map((student) => ({
       ...student,
       isAbsentToday: absentStudentIds.includes(student.uid),
     }))
+
+    // Custom sort: group (even, odd, 'R'), then lesson descending, then name
+    sortedStudents = sortedStudents.sort((a, b) => {
+      const getCategory = (student) => {
+        if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R')) {
+          return 2 // 'R' lessons last
+        }
+        const lessonNum = parseInt(student.currentLesson, 10)
+        if (!isNaN(lessonNum)) {
+          return lessonNum % 2 === 0 ? 0 : 1 // Even first, then odd
+        }
+        return 3 // fallback (put at end)
+      }
+
+      const catA = getCategory(a)
+      const catB = getCategory(b)
+      if (catA !== catB) return catA - catB
+
+      // Within group: sort by lesson number descending (higher first)
+      const getLessonNum = (student) => {
+        if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R'))
+          return -1
+        const n = parseInt(student.currentLesson, 10)
+        return isNaN(n) ? -1 : n
+      }
+      const lessonDiff = getLessonNum(b) - getLessonNum(a)
+      if (lessonDiff !== 0) return lessonDiff
+
+      // If lesson is the same, sort by name
+      return a.name.localeCompare(b.name)
+    })
+
+    students.value = sortedStudents
   }
 }
 
