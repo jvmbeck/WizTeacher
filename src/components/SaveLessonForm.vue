@@ -146,7 +146,7 @@ const submitLesson = async () => {
     classId: props.classId,
   })
 
-  emit('lessonSaved')
+  emit('lessonSaved', { studentId: props.studentId, newLessonNumber: lesson.value.lessonNumber })
   isOpen.value = false
 }
 </script>
