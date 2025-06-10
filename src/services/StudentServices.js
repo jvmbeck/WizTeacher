@@ -124,6 +124,14 @@ const StudentServices = {
     }
   },
 
+  async fetchLessonCompletion(student, book, lesson) {
+    if (!book || !lesson) return false
+    const lessonId = `${book}_${lesson}`
+    const lessonRef = doc(db, 'students', student.uid, 'lessons', lessonId)
+    const lessonSnap = await getDoc(lessonRef)
+    return lessonSnap.exists()
+  },
+
   async markStudentAbsent(studentId, classId) {
     const today = new Date().toISOString().split('T')[0]
     const absenceId = `${studentId}_${classId}_${today}`
