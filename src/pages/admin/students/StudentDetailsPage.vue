@@ -43,7 +43,9 @@
           bordered
           dense
           separator="cell"
-        />
+          :pagination="{ rowsPerPage: 0 }"
+        >
+        </q-table>
       </q-card-section>
     </q-card>
   </q-page>
@@ -75,7 +77,10 @@ const columns = [
     align: 'left',
   },
   { name: 'notes', label: 'Anotações', field: 'notes', align: 'left' },
-  { name: 'grade', label: 'Notas', field: 'grade', align: 'left' },
+  { name: 'gradeF', label: 'F', field: 'gradeF', align: 'center' },
+  { name: 'gradeA', label: 'A', field: 'gradeA', align: 'center' },
+  { name: 'gradeL', label: 'L', field: 'gradeL', align: 'center' },
+  { name: 'gradeE', label: 'E', field: 'gradeE', align: 'center' },
   { name: 'teacherName', label: 'Professor', field: 'teacherName', align: 'left' },
 ]
 
@@ -156,5 +161,21 @@ watch(
 
 .excel-style-table .q-tr:hover {
   background-color: #e0f7fa;
+}
+
+.grades-cell {
+  display: flex;
+  flex-direction: row;
+  gap: 8px; /* Controls the space between grades */
+}
+
+.grades-cell > div {
+  min-width: 32px;
+  text-align: center;
+  border-right: 1px solid #eee;
+}
+
+.grades-cell > div:last-child {
+  border-right: none;
 }
 </style>

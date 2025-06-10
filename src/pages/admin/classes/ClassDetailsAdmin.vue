@@ -337,7 +337,10 @@ const columns = [
   { name: 'lessonNumber', label: 'Lição', align: 'left', field: 'lessonNumber' },
   { name: 'completedAt', label: 'Data', align: 'left', field: 'completedAt' },
   { name: 'notes', label: 'Anotações', align: 'left', field: 'notes' },
-  { name: 'grade', label: 'Nota', align: 'left', field: 'grade' },
+  { name: 'gradeF', label: 'F', align: 'center', field: 'gradeF' },
+  { name: 'gradeA', label: 'A', align: 'center', field: 'gradeA' },
+  { name: 'gradeL', label: 'L', align: 'center', field: 'gradeL' },
+  { name: 'gradeE', label: 'E', align: 'center', field: 'gradeE' },
   { name: 'teacherName', label: 'Professor', align: 'left', field: 'teacherName' },
 ]
 
@@ -349,13 +352,29 @@ onMounted(() => {
 <style scoped>
 .my-table {
   max-height: 300px;
-  width: 28vw;
+  width: 30vw;
   overflow-y: auto;
+  align-self: center;
+  margin: 0 auto;
 }
 
 .student-details-card {
   display: flex;
   flex-direction: column;
-  min-width: 30vw;
+  min-width: 35vw;
+}
+.grades-cell {
+  display: flex;
+  flex-direction: row;
+}
+.grades-cell > div {
+  min-width: 32px;
+  text-align: center;
+  border-right: 1px solid #eee;
+  margin-right: 8px;
+}
+.grades-cell > div:last-child {
+  border-right: none;
+  margin-right: 0;
 }
 </style>
