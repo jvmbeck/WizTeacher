@@ -15,9 +15,10 @@
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
-          {{ student.name }} - {{ student.currentLesson }}/{{
-            getNextLessonLabel(student.currentLesson, student.book)
-          }}
+          {{ student.name }} - {{ student.currentLesson
+          }}<span v-if="getNextLessonLabel(student.currentLesson, student.book)"
+            >/{{ getNextLessonLabel(student.currentLesson, student.book) }}</span
+          >
           - {{ student.book }}
         </q-item-section>
         <q-btn
@@ -76,7 +77,6 @@ import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
-import {} from 'firebase/firestore'
 
 const $q = useQuasar()
 
