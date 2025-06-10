@@ -42,20 +42,6 @@
         <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
       </q-item>
     </q-list>
-
-    <q-dialog v-model="lessonDialog" seamless position="bottom">
-      <q-card style="width: 350px">
-        <q-card-section class="row items-center no-wrap">
-          <div>
-            <div>Nota adicionada com sucesso!</div>
-          </div>
-
-          <q-space />
-
-          <q-btn flat round icon="close" v-close-popup />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
   </div>
 
   <!-- Import the SaveLessonForm component -->
@@ -83,7 +69,6 @@ const $q = useQuasar()
 const route = useRoute()
 const classId = route.params.id
 
-const lessonDialog = ref(false)
 const classInfo = ref(null)
 const students = ref([])
 const selectedStudentId = ref(null)
@@ -140,11 +125,12 @@ const handleLessonSaved = (studentId, newLessonNumber) => {
   if (student) {
     student.currentLesson = newLessonNumber
   }
-  // Optionally, show a notification or dialog
-  lessonDialog.value = true
-  setTimeout(() => {
-    lessonDialog.value = false
-  }, 2000)
+  // Show a notification
+  $q.notify({
+    type: 'positive',
+    message: 'Nota adicionada com sucesso!',
+    icon: 'check_circle',
+  })
 }
 
 const markAbsent = async (studentId) => {
