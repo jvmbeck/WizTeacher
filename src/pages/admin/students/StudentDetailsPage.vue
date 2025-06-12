@@ -8,7 +8,7 @@
           <p><strong>Nome:</strong> {{ student.name }}</p>
           <p><strong>Livro:</strong> {{ student.book }}</p>
           <p><strong>Lição Atual:</strong> {{ student.currentLesson }}</p>
-          <p><strong>ID da Turma:</strong> {{ student.classId }}</p>
+          <p><strong>Turma:</strong> {{ className || student.classId }}</p>
         </div>
       </q-card-section>
 
@@ -20,7 +20,8 @@
             <q-item-section>
               <q-item-label>{{ absence.date }}</q-item-label>
               <q-item-label caption>
-                ID da Turma: {{ absence.classId }} | Motivo: {{ absence.reason }}
+                Turma: {{ classNamesMap[absence.classId] || absence.classId }} | Motivo:
+                {{ absence.reason }}
               </q-item-label>
             </q-item-section>
           </q-item>
@@ -43,7 +44,9 @@
           bordered
           dense
           separator="cell"
-        />
+          :pagination="{ rowsPerPage: 0 }"
+        >
+        </q-table>
       </q-card-section>
     </q-card>
   </q-page>
@@ -61,6 +64,8 @@ const student = ref(null)
 const lessons = ref([])
 const absences = ref([])
 const loadingAbsences = ref(true)
+const className = ref('')
+const classNamesMap = ref({})
 
 const columns = [
   { name: 'id', label: 'ID', field: 'id', align: 'left' },
@@ -75,9 +80,23 @@ const columns = [
     align: 'left',
   },
   { name: 'notes', label: 'Anotações', field: 'notes', align: 'left' },
-  { name: 'grade', label: 'Notas', field: 'grade', align: 'left' },
+  { name: 'gradeF', label: 'F', field: 'gradeF', align: 'center' },
+  { name: 'gradeA', label: 'A', field: 'gradeA', align: 'center' },
+  { name: 'gradeL', label: 'L', field: 'gradeL', align: 'center' },
+  { name: 'gradeE', label: 'E', field: 'gradeE', align: 'center' },
   { name: 'teacherName', label: 'Professor', field: 'teacherName', align: 'left' },
 ]
+
+async function fetchClassNamesForAbsences(absencesArr) {
+  const ids = [...new Set(absencesArr.map((a) => a.classId).filter(Boolean))]
+  const map = {}
+  for (const id of ids) {
+    const classRef = doc(db, 'classes', id)
+    const classSnap = await getDoc(classRef)
+    map[id] = classSnap.exists() ? classSnap.data().className || id : id
+  }
+  classNamesMap.value = map
+}
 
 // Fetch Absences
 async function fetchStudentAbsences(studentId) {
@@ -91,7 +110,7 @@ async function fetchStudentAbsences(studentId) {
       id: doc.id,
       ...doc.data(),
     }))
-
+    await fetchClassNamesForAbsences(absences.value)
     console.log('Absences:', absences.value)
   } catch (error) {
     console.error('Error fetching absences:', error)
@@ -111,6 +130,19 @@ async function fetchStudentData(studentId) {
     if (studentSnap.exists()) {
       console.log('Student data:', studentSnap.data())
       student.value = studentSnap.data()
+
+      // Fetch class name if classId exists
+      if (student.value.classId) {
+        const classRef = doc(db, 'classes', student.value.classId)
+        const classSnap = await getDoc(classRef)
+        if (classSnap.exists()) {
+          className.value = classSnap.data().className || student.value.classId
+        } else {
+          className.value = student.value.classId
+        }
+      } else {
+        className.value = ''
+      }
 
       const lessonsRef = collection(db, 'students', studentId, 'lessons')
       const lessonSnaps = await getDocs(lessonsRef)
@@ -156,5 +188,21 @@ watch(
 
 .excel-style-table .q-tr:hover {
   background-color: #e0f7fa;
+}
+
+.grades-cell {
+  display: flex;
+  flex-direction: row;
+  gap: 8px; /* Controls the space between grades */
+}
+
+.grades-cell > div {
+  min-width: 32px;
+  text-align: center;
+  border-right: 1px solid #eee;
+}
+
+.grades-cell > div:last-child {
+  border-right: none;
 }
 </style>

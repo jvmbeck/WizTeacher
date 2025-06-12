@@ -2,35 +2,89 @@
   <div class="q-pa-md">
     <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
 
-    <h5>{{ classInfo?.className }}</h5>
+    <div class="class-header q-mb-md">
+      <h5>{{ classInfo?.className }}</h5>
+      <q-btn
+        color="primary"
+        icon="content_copy"
+        label="Copiar todos"
+        @click="copyAllStudentsInfo"
+      />
+    </div>
+
     <q-list bordered>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section>
-          {{ student.name }} - {{ student.currentLesson }}/{{
-            getNextLessonLabel(student.currentLesson, student.book)
-          }}
-          - {{ student.book }}
-        </q-item-section>
+          {{ student.name }} -
+          <span>
+            <span v-if="student.hasCurrentLessonSaved" class="lesson-saved">
+              {{ student.currentLesson }}
+              <q-icon
+                name="check_circle"
+                color="green"
+                size="xs"
+                class="q-ml-xs"
+                title="Primeira lição salva"
+              />
+            </span>
 
+            <span v-else class="lesson-planned">
+              {{ student.currentLesson }}
+              <q-icon
+                name="hourglass_empty"
+                color="grey"
+                size="xs"
+                class="q-ml-xs"
+                title="Próxima lição (não salva)"
+              />
+            </span>
+            <span v-if="getNextLessonLabel(student.currentLesson, student.book)">
+              /
+              <span v-if="student.hasNextLessonSaved" class="lesson-saved">
+                {{ getNextLessonLabel(student.currentLesson, student.book) }}
+                <q-icon
+                  name="check_circle"
+                  color="green"
+                  size="xs"
+                  class="q-ml-xs"
+                  title="Segunda lição salva"
+                />
+              </span>
+              <span v-else class="lesson-planned">
+                {{ getNextLessonLabel(student.currentLesson, student.book) }}
+                <q-icon
+                  name="hourglass_empty"
+                  color="grey"
+                  size="xs"
+                  class="q-ml-xs"
+                  title="Próxima lição (não salva)"
+                />
+              </span>
+            </span>
+            - {{ student.book }}
+          </span>
+        </q-item-section>
+        <q-btn
+          flat
+          round
+          icon="content_copy"
+          size="sm"
+          @click="copyStudentInfo(student)"
+          :title="`Copiar info de ${student.name}`"
+        />
         <q-icon v-if="student.currentLesson == null" name="check_circle" color="green" size="md" />
-        <q-item-section side> </q-item-section>
+        <q-icon
+          v-if="student.isAbsentToday"
+          name="event_busy"
+          color="red"
+          size="sm"
+          class="q-ml-xs"
+          title="Ausente hoje"
+        />
         <q-btn label="Edit Lesson" @click="openLessonForm(student.uid)" />
         <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
       </q-item>
     </q-list>
-    <q-dialog v-model="lessonDialog" seamless position="bottom">
-      <q-card style="width: 350px">
-        <q-card-section class="row items-center no-wrap">
-          <div>
-            <div>Nota adicionada com sucesso!</div>
-          </div>
-
-          <q-space />
-
-          <q-btn flat round icon="close" v-close-popup />
-        </q-card-section>
-      </q-card>
-    </q-dialog>
   </div>
 
   <!-- Import the SaveLessonForm component -->
@@ -39,30 +93,59 @@
     :student-id="selectedStudentId"
     :student-name="selectedStudent?.name"
     :class-id="classId"
-    @lessonSaved="handleLessonSaved"
+    @lessonSaved="onLessonSaved"
   />
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
+
 const $q = useQuasar()
 
 const route = useRoute()
 const classId = route.params.id
 
-const lessonDialog = ref(false)
 const classInfo = ref(null)
 const students = ref([])
 const selectedStudentId = ref(null)
 const selectedStudent = ref(null)
 const isFormOpen = ref(false)
+
+const copyStudentInfo = (student) => {
+  const text = `${student.name} - ${student.currentLesson}/${getNextLessonLabel(student.currentLesson, student.book)} - ${student.book}`
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      $q.notify({ type: 'positive', message: 'Copiado para a área de transferência!' })
+    })
+    .catch(() => {
+      $q.notify({ type: 'negative', message: 'Falha ao copiar.' })
+    })
+}
+
+const copyAllStudentsInfo = () => {
+  const text = students.value
+    .map(
+      (student) =>
+        `${student.name} - ${student.currentLesson}/${getNextLessonLabel(student.currentLesson, student.book)} - ${student.book}`,
+    )
+    .join('\n')
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      $q.notify({ type: 'positive', message: 'Todos os alunos copiados!' })
+    })
+    .catch(() => {
+      $q.notify({ type: 'negative', message: 'Falha ao copiar.' })
+    })
+}
 
 const openLessonForm = (studentId) => {
   const student = students.value.find((s) => s.uid === studentId)
@@ -73,19 +156,35 @@ const openLessonForm = (studentId) => {
   isFormOpen.value = true
 }
 
-const handleLessonSaved = async () => {
-  console.log('Lesson saved!')
-  lessonDialog.value = true
-  setTimeout(() => {
-    lessonDialog.value = false
-  }, 2000)
-  // refresh student data
-  console.log('Refreshing student data...')
-  setTimeout(() => {
-    fetchStudentList()
-  }, 1000)
+const onLessonSaved = ({ studentId }) => {
+  handleLessonSaved(studentId)
 }
 
+const handleLessonSaved = async (studentId) => {
+  // Find the student in the local array
+  const student = students.value.find((s) => s.uid === studentId)
+  if (student) {
+    // Do NOT update student.currentLesson here!
+
+    // Always recalculate completion flags
+    student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
+      student,
+      student.book,
+      student.currentLesson,
+    )
+    const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
+    student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
+      student,
+      student.book,
+      nextLesson,
+    )
+  }
+  $q.notify({
+    type: 'positive',
+    message: 'Nota adicionada com sucesso!',
+    icon: 'check_circle',
+  })
+}
 const markAbsent = async (studentId) => {
   // Show confirmation dialog before marking absent
   const confirmed = $q
@@ -103,6 +202,7 @@ const markAbsent = async (studentId) => {
           type: 'positive',
           message: 'Aluno marcado como ausente com sucesso!',
         })
+        await fetchStudentList() // Refresh to update absence icons
       } catch (err) {
         $q.notify({
           type: 'negative',
@@ -124,7 +224,71 @@ const fetchStudentList = async () => {
   classInfo.value = classSnap.data()
 
   if (classInfo.value.studentIds?.length) {
-    students.value = await StudentServices.fetchStudentsByIds(classInfo.value.studentIds)
+    // Fetch students
+    const studentList = await StudentServices.fetchStudentsByIds(classInfo.value.studentIds)
+
+    // Fetch today's absences for this class
+    const today = new Date().toISOString().split('T')[0]
+    const absencesQuery = query(
+      collection(db, 'absences'),
+      where('classId', '==', classId),
+      where('date', '==', today),
+    )
+    const absencesSnap = await getDocs(absencesQuery)
+    const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
+
+    // Annotate students with absence status
+    let sortedStudents = studentList.map((student) => ({
+      ...student,
+      isAbsentToday: absentStudentIds.includes(student.uid),
+    }))
+
+    // Custom sort: group (even, odd, 'R'), then lesson descending, then name
+    sortedStudents = sortedStudents.sort((a, b) => {
+      const getCategory = (student) => {
+        if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R')) {
+          return 2 // 'R' lessons last
+        }
+        const lessonNum = parseInt(student.currentLesson, 10)
+        if (!isNaN(lessonNum)) {
+          return lessonNum % 2 === 0 ? 0 : 1 // Even first, then odd
+        }
+        return 3 // fallback (put at end)
+      }
+
+      const catA = getCategory(a)
+      const catB = getCategory(b)
+      if (catA !== catB) return catA - catB
+
+      // Within group: sort by lesson number descending (higher first)
+      const getLessonNum = (student) => {
+        if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R'))
+          return -1
+        const n = parseInt(student.currentLesson, 10)
+        return isNaN(n) ? -1 : n
+      }
+      const lessonDiff = getLessonNum(b) - getLessonNum(a)
+      if (lessonDiff !== 0) return lessonDiff
+
+      // If lesson is the same, sort by name
+      return a.name.localeCompare(b.name)
+    })
+
+    students.value = sortedStudents
+
+    for (const student of sortedStudents) {
+      student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
+        student,
+        student.book,
+        student.currentLesson,
+      )
+      const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
+      student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
+        student,
+        student.book,
+        nextLesson,
+      )
+    }
   }
 }
 
@@ -141,3 +305,17 @@ onMounted(async () => {
   await fetchStudentList()
 })
 </script>
+
+<style scoped>
+.class-header {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lesson-saved {
+  color: #21ba45; /* Quasar green */
+  font-weight: bold;
+}
+</style>

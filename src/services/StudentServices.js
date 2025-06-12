@@ -71,8 +71,6 @@ const StudentServices = {
 
     const fullLessonInfo = {
       ...lessonData,
-      book,
-      lessonNumber,
       studentId,
       completedAt: serverTimestamp(),
       teacherId: user.uid,
@@ -124,6 +122,14 @@ const StudentServices = {
       nextLesson,
       isEndOfBook: isLastLesson,
     }
+  },
+
+  async fetchLessonCompletion(student, book, lesson) {
+    if (!book || !lesson) return false
+    const lessonId = `${book}_${lesson}`
+    const lessonRef = doc(db, 'students', student.uid, 'lessons', lessonId)
+    const lessonSnap = await getDoc(lessonRef)
+    return lessonSnap.exists()
   },
 
   async markStudentAbsent(studentId, classId) {

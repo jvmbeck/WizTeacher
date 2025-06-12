@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="isOpen">
-    <q-card>
+    <q-card class="q-pa-md" style="min-width: 450px; max-width: 600px">
       <q-card-section>
         <div class="text-h6">Save Lesson Info</div>
       </q-card-section>
@@ -9,7 +9,20 @@
         <q-card-section>
           <q-input v-model="lesson.book" label="Book" />
           <q-input v-model="lesson.lessonNumber" label="Lesson #" />
-          <q-input v-model="lesson.grade" label="Grade" />
+          <div class="row q-col-gutter-md">
+            <q-select
+              v-for="field in gradeFields"
+              :key="field.key"
+              v-model="lesson[field.key]"
+              :options="gradeOptions"
+              :label="field.label"
+              emit-value
+              map-options
+              class="col"
+              placeholder="Selecionar nota"
+            />
+          </div>
+
           <q-input v-model="lesson.notes" label="Notes" type="textarea" />
         </q-card-section>
 
@@ -45,9 +58,27 @@ const isOpen = ref(props.modelValue)
 const lesson = ref({
   book: '',
   lessonNumber: '',
-  grade: '',
+  gradeF: '',
+  gradeA: '',
+  gradeL: '',
+  gradeE: ' ',
   notes: '',
 })
+
+const gradeOptions = [
+  { label: 'O', value: 'O' },
+  { label: 'MB', value: 'MB' },
+  { label: 'B', value: 'B' },
+  { label: 'R', value: 'R' },
+  { label: '', value: ' ' },
+]
+
+const gradeFields = [
+  { key: 'gradeF', label: 'F' },
+  { key: 'gradeA', label: 'A' },
+  { key: 'gradeL', label: 'L' },
+  { key: 'gradeE', label: 'E' },
+]
 
 // Watch for dialog open and fetch student data
 watch(
@@ -86,7 +117,6 @@ watch(
       lesson.value = {
         book,
         lessonNumber: String(currentLesson),
-        grade: '',
         notes: '',
       }
       endOfBook.value = false
@@ -116,7 +146,7 @@ const submitLesson = async () => {
     classId: props.classId,
   })
 
-  emit('lessonSaved')
+  emit('lessonSaved', { studentId: props.studentId, newLessonNumber: lesson.value.lessonNumber })
   isOpen.value = false
 }
 </script>
