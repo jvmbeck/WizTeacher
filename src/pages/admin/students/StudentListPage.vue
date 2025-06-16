@@ -112,13 +112,15 @@ const handleCreateStudent = async (newStudent) => {
 
 const handleUpdateStudent = async (updatedStudent) => {
   try {
-    const oldClassId = selectedStudent.value.classId
-    await StudentServices.updateStudent(updatedStudent.uid, updatedStudent, oldClassId)
-    $q.notify({ type: 'positive', message: 'Student updated successfully' })
+    const oldClassIds = [...selectedStudent.value.classIds] // ✅ Backup previous classIds array
+
+    await studentStore.updateStudent(selectedStudent.value.id, updatedStudent, oldClassIds)
+
+    $q.notify({ type: 'positive', message: 'Aluno atualizado com sucesso' })
     await studentStore.fetchStudents()
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Failed to update student' })
+    $q.notify({ type: 'negative', message: 'Falha ao atualizar aluno' })
   }
 }
 const confirmDelete = (student) => {
