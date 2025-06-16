@@ -10,6 +10,8 @@ import {
   arrayUnion,
   deleteDoc,
   runTransaction,
+  writeBatch,
+  arrayRemove,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
@@ -171,38 +173,67 @@ const StudentServices = {
     })
   },
 
-  async addStudent(studentData) {
+  async createStudent(studentData) {
     const docRef = await addDoc(collection(db, 'students'), studentData)
 
-    if (studentData.classId) {
-      const classRef = doc(db, 'classes', studentData.classId)
-      await updateDoc(classRef, {
-        studentIds: arrayUnion(docRef.id),
+    if (Array.isArray(studentData.classIds) && studentData.classIds.length > 0) {
+      // Using a Firestore batch → So it updates all class documents in one network request.
+      // Adds the new student’s ID to the studentIds array of each class.
+      const batch = writeBatch(db)
+
+      studentData.classIds.forEach((classId) => {
+        const classRef = doc(db, 'classes', classId)
+        batch.update(classRef, {
+          studentIds: arrayUnion(docRef.id),
+        })
       })
+
+      await batch.commit()
     }
 
     return { id: docRef.id, ...studentData }
   },
 
-  async updateStudent(studentId, updatedData, oldClassId = null) {
+  async updateStudent(studentId, updatedData, oldClassIds = []) {
     console.log('Updating student:', studentId, updatedData)
 
     const studentRef = doc(db, 'students', studentId)
 
-    // Save updated fields to the student document
-    const { name, book, currentLesson, classId } = updatedData
+    const { name, book, currentLesson, classIds } = updatedData
+
+    // ✅ Update student document with the new classIds array
     await updateDoc(studentRef, {
       name,
       book,
       currentLesson,
-      classId,
+      classIds,
     })
 
-    // If class has changed, update class membership
-    if (oldClassId && oldClassId !== classId) {
-      await classServices.removeStudentFromClass(oldClassId, studentId)
-      await classServices.addStudentToClass(classId, studentId)
-    }
+    // ✅ Determine which classes the student was removed from
+    const removedClasses = oldClassIds.filter((oldId) => !classIds.includes(oldId))
+
+    // ✅ Determine which new classes the student was added to
+    const addedClasses = classIds.filter((newId) => !oldClassIds.includes(newId))
+
+    const batch = writeBatch(db)
+
+    // ✅ Remove student from old classes
+    removedClasses.forEach((classId) => {
+      const classRef = doc(db, 'classes', classId)
+      batch.update(classRef, {
+        studentIds: arrayRemove(studentId),
+      })
+    })
+
+    // ✅ Add student to new classes
+    addedClasses.forEach((classId) => {
+      const classRef = doc(db, 'classes', classId)
+      batch.update(classRef, {
+        studentIds: arrayUnion(studentId),
+      })
+    })
+
+    await batch.commit()
   },
 
   async deleteStudent(id, classId = null) {
