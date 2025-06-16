@@ -9,15 +9,15 @@ export const useStudentStore = defineStore('studentStore', {
     async fetchStudents() {
       this.students = await StudentServices.fetchAllStudents()
     },
-    async addStudent(studentData) {
-      const newStudent = await StudentServices.addStudent(studentData)
+    async createStudent(studentData) {
+      const newStudent = await StudentServices.createStudent(studentData)
       this.students.push(newStudent)
     },
     async updateStudent(id, updatedData) {
       const existingStudent = this.students.find((s) => s.id === id)
-      const oldClassId = existingStudent?.classId || null
+      const oldClassIds = existingStudent?.classIds ? [...existingStudent.classIds] : []
 
-      await StudentServices.updateStudent(id, updatedData, oldClassId)
+      await StudentServices.updateStudent(id, updatedData, oldClassIds)
       await this.fetchStudents()
     },
     async deleteStudent(id, classId) {
