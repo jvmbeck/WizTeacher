@@ -18,13 +18,14 @@
             required
           />
           <q-select
-            v-model="selectedClassId"
+            v-model="selectedClassIds"
             :options="classes"
             option-label="name"
             option-value="id"
             emit-value
             map-options
-            label="Select Class"
+            label="Select Classes"
+            multiple
             outlined
           />
         </q-card-section>
@@ -52,7 +53,7 @@ const emit = defineEmits(['update:modelValue', 'create'])
 
 const studentStore = useStudentStore()
 
-const selectedClassId = ref(null)
+const selectedClassIds = ref([])
 
 const classStore = useClassStore()
 const { classes } = storeToRefs(classStore)
@@ -60,11 +61,12 @@ const { classes } = storeToRefs(classStore)
 onMounted(() => {
   classStore.fetchClasses()
 })
+
 const newStudent = ref({
   name: '',
   book: '',
-  currentLesson: '1',
-  classId: selectedClassId,
+  currentLesson: 1,
+  classIds: [],
 })
 
 watch(
@@ -75,14 +77,16 @@ watch(
         name: '',
         book: '',
         currentLesson: 1,
-        classId: selectedClassId,
+        classIds: [],
       }
+      selectedClassIds.value = []
     }
   },
 )
 
 async function submitStudent() {
-  await studentStore.addStudent(newStudent.value)
+  newStudent.value.classIds = selectedClassIds.value
+  await studentStore.createStudent(newStudent.value)
   emit('create', { ...newStudent.value })
   emit('update:modelValue', false)
 }
