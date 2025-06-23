@@ -112,13 +112,15 @@ const handleCreateStudent = async (newStudent) => {
 
 const handleUpdateStudent = async (updatedStudent) => {
   try {
-    const oldClassId = selectedStudent.value.classId
-    await StudentServices.updateStudent(updatedStudent.uid, updatedStudent, oldClassId)
-    $q.notify({ type: 'positive', message: 'Student updated successfully' })
+    const oldClassIds = [...selectedStudent.value.classIds] // ✅ Backup previous classIds array
+
+    await StudentServices.updateStudent(updatedStudent.uid, updatedStudent, oldClassIds)
+
+    $q.notify({ type: 'positive', message: 'Aluno atualizado com sucesso' })
     await studentStore.fetchStudents()
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Failed to update student' })
+    $q.notify({ type: 'negative', message: 'Falha ao atualizar aluno' })
   }
 }
 const confirmDelete = (student) => {
@@ -146,19 +148,11 @@ const studentStore = useStudentStore()
 const classStore = useClassStore()
 
 const { students } = storeToRefs(studentStore)
-const { classes } = storeToRefs(classStore)
+const { classMap } = storeToRefs(classStore)
 
 onMounted(async () => {
   await classStore.fetchClasses()
   await studentStore.fetchStudents()
-})
-
-const classMap = computed(() => {
-  const map = {}
-  classes.value.forEach((cls) => {
-    map[cls.id] = cls.name || 'sem nome'
-  })
-  return map
 })
 
 const searchQuery = ref('')
@@ -168,9 +162,16 @@ const filteredStudents = computed(() => {
   return students.value.filter((student) => {
     const name = student.name?.toLowerCase() || ''
     const book = student.book?.toLowerCase() || ''
-    const className = classMap.value[student.classId]?.toLowerCase() || ''
 
-    return name.includes(query) || book.includes(query) || className.includes(query)
+    const classIds = Array.isArray(student.classIds)
+      ? student.classIds
+      : student.classId
+        ? [student.classId]
+        : []
+
+    const classNames = classIds.map((id) => classMap.value[id]?.toLowerCase() || '').join(' ')
+
+    return name.includes(query) || book.includes(query) || classNames.includes(query)
   })
 })
 
@@ -179,11 +180,18 @@ const columns = [
   { name: 'book', label: 'Livro', field: 'book', sortable: true },
   { name: 'currentLesson', label: 'Lição Atual', field: 'currentLesson', sortable: true },
   {
-    name: 'class',
-    label: 'Turma',
-    field: 'classId', // must be a key on student object
-    format: (val) => classMap.value[val] || '—',
-    sortable: true,
+    name: 'classes',
+    label: 'Turmas',
+    field: 'classIds',
+    format: (val, row) => {
+      const classIds = Array.isArray(row.classIds) ? row.classIds : row.classId ? [row.classId] : []
+
+      if (classIds.length > 0) {
+        return classIds.map((id) => classMap.value[id] || '—').join(', ')
+      }
+      return '—'
+    },
+    sortable: false,
   },
   { name: 'actions', label: '', field: 'id' },
 ]

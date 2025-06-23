@@ -11,17 +11,20 @@
         <q-input
           v-model="editedData.currentLesson"
           label="Current Lesson"
+          type="number"
           outlined
           class="q-mb-sm"
         />
+        <!-- ✅ Multi-select for classIds -->
         <q-select
-          v-model="editedData.classId"
+          v-model="editedData.classIds"
           :options="classOptions"
-          label="Class"
+          label="Classes"
           option-label="label"
           option-value="value"
           emit-value
           map-options
+          multiple
           outlined
         />
       </q-card-section>
@@ -51,7 +54,6 @@ const classOptions = ref([])
 
 const classStore = useClassStore()
 
-// Load class options on mount
 onMounted(async () => {
   await classStore.fetchClasses()
   classOptions.value = classStore.classes.map((cls) => ({
@@ -60,13 +62,16 @@ onMounted(async () => {
   }))
 })
 
-// Sync dialog visibility
 watch(
   () => props.modelValue,
   (val) => {
     isOpen.value = val
     if (val && props.student) {
-      editedData.value = { ...props.student } // Clone student data
+      // ✅ Deep clone and ensure classIds is always an array
+      editedData.value = {
+        ...props.student,
+        classIds: Array.isArray(props.student.classIds) ? [...props.student.classIds] : [],
+      }
     }
   },
 )

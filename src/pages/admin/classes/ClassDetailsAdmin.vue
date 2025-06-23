@@ -58,7 +58,7 @@
           color="negative"
           flat
           dense
-          @click="removeStudentFromClass(selectedStudent.id)"
+          @click="removeStudentFromClass(classId, selectedStudent.id)"
           title="Remover aluno"
         />
 
@@ -199,7 +199,7 @@ async function openStudentDialog(studentId) {
     selectedStudent.value.id = docSnap.id // Add the document ID to the student object
     await fetchAbsences(studentId)
     await fetchLessons(studentId)
-    classInfo.value = await ClassServices.fetchClassById(selectedStudent.value.classId)
+    classInfo.value = await ClassServices.fetchClassById(classId)
     isDialogOpen.value = true
   } else {
     console.error('Aluno não encontrado.')
@@ -212,7 +212,7 @@ function openAddStudentDialog() {
   selectedStudentId.value = null
 }
 
-async function removeStudentFromClass(studentId) {
+async function removeStudentFromClass(classId, studentId) {
   $q.dialog({
     title: 'Remover aluno',
     message: 'Tem certeza que deseja remover este aluno da turma?',
@@ -220,7 +220,7 @@ async function removeStudentFromClass(studentId) {
     persistent: true,
   }).onOk(async () => {
     try {
-      await StudentServices.removeStudentFromClass(studentId)
+      await StudentServices.removeStudentFromClass(classId, studentId)
       isDialogOpen.value = false
       selectedStudent.value = null
       await fetchClassDetails(classData.value.studentIds || [])

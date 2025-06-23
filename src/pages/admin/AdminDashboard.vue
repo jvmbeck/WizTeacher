@@ -4,12 +4,7 @@
     <q-btn to="AdminDashboard/teacherList">Professores</q-btn>
     <q-btn to="AdminDashboard/classList">Turmas</q-btn>
   </div>
-  <SignOutButton></SignOutButton>
 </template>
-
-<script setup>
-import SignOutButton from 'src/components/SignOutButton.vue'
-</script>
 
 <style scoped>
 .admin-dashboard {

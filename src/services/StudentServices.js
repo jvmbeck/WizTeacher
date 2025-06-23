@@ -10,6 +10,8 @@ import {
   arrayUnion,
   deleteDoc,
   runTransaction,
+  writeBatch,
+  arrayRemove,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
@@ -29,7 +31,7 @@ const StudentServices = {
         name: data.name || '',
         book: data.book || '',
         currentLesson: data.currentLesson || '',
-        classId: data.classId || null,
+        classIds: data.classIds || null,
       }
     })
     return students
@@ -171,98 +173,115 @@ const StudentServices = {
     })
   },
 
-  async addStudent(studentData) {
+  async createStudent(studentData) {
     const docRef = await addDoc(collection(db, 'students'), studentData)
 
-    if (studentData.classId) {
-      const classRef = doc(db, 'classes', studentData.classId)
-      await updateDoc(classRef, {
-        studentIds: arrayUnion(docRef.id),
+    if (Array.isArray(studentData.classIds) && studentData.classIds.length > 0) {
+      // Using a Firestore batch → So it updates all class documents in one network request.
+      // Adds the new student’s ID to the studentIds array of each class.
+      const batch = writeBatch(db)
+
+      studentData.classIds.forEach((classId) => {
+        const classRef = doc(db, 'classes', classId)
+        batch.update(classRef, {
+          studentIds: arrayUnion(docRef.id),
+        })
       })
+
+      await batch.commit()
     }
 
     return { id: docRef.id, ...studentData }
   },
 
-  async updateStudent(studentId, updatedData, oldClassId = null) {
+  async updateStudent(studentId, updatedData, oldClassIds = []) {
     console.log('Updating student:', studentId, updatedData)
 
     const studentRef = doc(db, 'students', studentId)
 
-    // Save updated fields to the student document
-    const { name, book, currentLesson, classId } = updatedData
+    const { name, book, currentLesson, classIds } = updatedData
+
+    // ✅ Update student document with the new classIds array
     await updateDoc(studentRef, {
       name,
       book,
       currentLesson,
-      classId,
+      classIds,
     })
 
-    // If class has changed, update class membership
-    if (oldClassId && oldClassId !== classId) {
-      await classServices.removeStudentFromClass(oldClassId, studentId)
-      await classServices.addStudentToClass(classId, studentId)
-    }
+    // ✅ Determine which classes the student was removed from
+    const removedClasses = oldClassIds.filter((oldId) => !classIds.includes(oldId))
+
+    // ✅ Determine which new classes the student was added to
+    const addedClasses = classIds.filter((newId) => !oldClassIds.includes(newId))
+
+    const batch = writeBatch(db)
+
+    // ✅ Remove student from old classes
+    removedClasses.forEach((classId) => {
+      const classRef = doc(db, 'classes', classId)
+      batch.update(classRef, {
+        studentIds: arrayRemove(studentId),
+      })
+    })
+
+    // ✅ Add student to new classes
+    addedClasses.forEach((classId) => {
+      const classRef = doc(db, 'classes', classId)
+      batch.update(classRef, {
+        studentIds: arrayUnion(studentId),
+      })
+    })
+
+    await batch.commit()
   },
 
-  async deleteStudent(id, classId = null) {
+  async deleteStudent(id) {
     try {
       const studentRef = doc(db, 'students', id)
 
-      // If classId not provided, fetch student data
-      if (!classId) {
-        const studentSnap = await getDoc(studentRef)
-        if (!studentSnap.exists()) throw new Error('Student not found')
-        classId = studentSnap.data().classId
-      }
+      // Fetch student to get all classIds
+      const studentSnap = await getDoc(studentRef)
+      if (!studentSnap.exists()) throw new Error('Student not found')
 
-      // Delete 'lessons' subcollection
+      const studentData = studentSnap.data()
+      const classIds = studentData.classIds || []
+
+      // Delete all documents inside 'lessons' subcollection
       const lessonsRef = collection(db, 'students', id, 'lessons')
       const lessonsSnapshot = await getDocs(lessonsRef)
-
       await Promise.all(lessonsSnapshot.docs.map((doc) => deleteDoc(doc.ref)))
 
       // Delete student document
       await deleteDoc(studentRef)
 
-      // Remove student from class
-      if (classId) {
-        await classServices.removeStudentFromClass(classId, id)
-      }
+      // Remove student from all classes they were part of
+      await Promise.all(
+        classIds.map((classId) => classServices.removeStudentFromClass(classId, id)),
+      )
     } catch (error) {
       console.error('Error deleting student:', error)
       throw error
     }
   },
 
-  async removeStudentFromClass(studentId) {
-    // Ensure studentId is provided
-    if (!studentId) {
-      throw new Error('Student ID is required')
+  async removeStudentFromClass(classId, studentId) {
+    if (!classId || !studentId) {
+      throw new Error('Both classId and studentId are required')
     }
-    // Fetch student document to get classId
+
+    const classRef = doc(db, 'classes', classId)
+
+    // Remove studentId from the class's studentIds array
+    await updateDoc(classRef, {
+      studentIds: arrayRemove(studentId),
+    })
+
     const studentRef = doc(db, 'students', studentId)
-    const studentSnap = await getDoc(studentRef)
 
-    // Check if student exists
-    if (!studentSnap.exists()) {
-      throw new Error('Student not found')
-    }
-
-    const studentData = studentSnap.data()
-    const classId = studentData.classId
-
-    // Ensure student is enrolled in a class
-    if (!classId) {
-      throw new Error('Student is not enrolled in any class')
-    }
-
-    // Remove student from class
-    await classServices.removeStudentFromClass(classId, studentId)
-
-    // Update student's classId to null
+    // Also remove the classId from the student's classIds array
     await updateDoc(studentRef, {
-      classId: null,
+      classIds: arrayRemove(classId),
     })
   },
 }

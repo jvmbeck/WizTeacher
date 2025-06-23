@@ -19,6 +19,8 @@ const AuthServices = {
   async handleSignOut() {
     try {
       await signOut(auth)
+      const userStore = useUserStore()
+      userStore.clearUser() // Clear the user store on sign out
       console.log('User signed out.')
     } catch (error) {
       console.error('Error signing out:', error.message)

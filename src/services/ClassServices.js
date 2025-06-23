@@ -144,7 +144,7 @@ const ClassServices = {
     })
 
     await updateDoc(studentRef, {
-      classId: classId,
+      classIds: arrayUnion(classId),
     })
   },
 

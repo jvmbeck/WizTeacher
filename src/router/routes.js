@@ -1,13 +1,13 @@
 const routes = [
   {
     path: '/',
-    component: () => import('layouts/MainLayout.vue'),
+    component: () => import('src/layouts/LoggedOutLayout.vue'),
     children: [{ path: '', name: 'LoginPage', component: () => import('src/pages/LoginPage.vue') }],
   },
 
   {
     path: '/TeacherDashboard',
-    component: () => import('layouts/MainLayout.vue'),
+    component: () => import('layouts/LoggedInLayout.vue'),
     meta: { requiresAuth: true, role: 'teacher' },
     children: [
       {
@@ -30,7 +30,7 @@ const routes = [
 
   {
     path: '/AdminDashboard',
-    component: () => import('layouts/MainLayout.vue'),
+    component: () => import('layouts/LoggedInLayout.vue'),
     meta: { requiresAuth: true, role: 'admin' },
     children: [
       {
