@@ -2,8 +2,6 @@
   <div class="dashboard q-pa-md">
     <div class="text-h3 text-center q-mt-md">Welcome, teacher {{ teacherName }}!</div>
 
-    <SignOutButton></SignOutButton>
-
     <div class="query-container">
       <q-input
         v-model="searchQuery"
@@ -57,7 +55,6 @@
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from 'src/stores/userStore.js'
 import ClassServices from 'src/services/ClassServices.js'
-import SignOutButton from 'src/components/SignOutButton.vue'
 
 const userStore = useUserStore()
 const teacherName = computed(() => userStore.userInfo?.name || '')
