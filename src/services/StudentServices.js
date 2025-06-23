@@ -31,7 +31,7 @@ const StudentServices = {
         name: data.name || '',
         book: data.book || '',
         currentLesson: data.currentLesson || '',
-        classId: data.classId || null,
+        classIds: data.classIds || null,
       }
     })
     return students
@@ -236,64 +236,52 @@ const StudentServices = {
     await batch.commit()
   },
 
-  async deleteStudent(id, classId = null) {
+  async deleteStudent(id) {
     try {
       const studentRef = doc(db, 'students', id)
 
-      // If classId not provided, fetch student data
-      if (!classId) {
-        const studentSnap = await getDoc(studentRef)
-        if (!studentSnap.exists()) throw new Error('Student not found')
-        classId = studentSnap.data().classId
-      }
+      // Fetch student to get all classIds
+      const studentSnap = await getDoc(studentRef)
+      if (!studentSnap.exists()) throw new Error('Student not found')
 
-      // Delete 'lessons' subcollection
+      const studentData = studentSnap.data()
+      const classIds = studentData.classIds || []
+
+      // Delete all documents inside 'lessons' subcollection
       const lessonsRef = collection(db, 'students', id, 'lessons')
       const lessonsSnapshot = await getDocs(lessonsRef)
-
       await Promise.all(lessonsSnapshot.docs.map((doc) => deleteDoc(doc.ref)))
 
       // Delete student document
       await deleteDoc(studentRef)
 
-      // Remove student from class
-      if (classId) {
-        await classServices.removeStudentFromClass(classId, id)
-      }
+      // Remove student from all classes they were part of
+      await Promise.all(
+        classIds.map((classId) => classServices.removeStudentFromClass(classId, id)),
+      )
     } catch (error) {
       console.error('Error deleting student:', error)
       throw error
     }
   },
 
-  async removeStudentFromClass(studentId) {
-    // Ensure studentId is provided
-    if (!studentId) {
-      throw new Error('Student ID is required')
+  async removeStudentFromClass(classId, studentId) {
+    if (!classId || !studentId) {
+      throw new Error('Both classId and studentId are required')
     }
-    // Fetch student document to get classId
+
+    const classRef = doc(db, 'classes', classId)
+
+    // Remove studentId from the class's studentIds array
+    await updateDoc(classRef, {
+      studentIds: arrayRemove(studentId),
+    })
+
     const studentRef = doc(db, 'students', studentId)
-    const studentSnap = await getDoc(studentRef)
 
-    // Check if student exists
-    if (!studentSnap.exists()) {
-      throw new Error('Student not found')
-    }
-
-    const studentData = studentSnap.data()
-    const classId = studentData.classId
-
-    // Ensure student is enrolled in a class
-    if (!classId) {
-      throw new Error('Student is not enrolled in any class')
-    }
-
-    // Remove student from class
-    await classServices.removeStudentFromClass(classId, studentId)
-
-    // Update student's classId to null
+    // Also remove the classId from the student's classIds array
     await updateDoc(studentRef, {
-      classId: null,
+      classIds: arrayRemove(classId),
     })
   },
 }
