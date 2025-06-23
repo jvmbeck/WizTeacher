@@ -8,7 +8,16 @@
           <p><strong>Nome:</strong> {{ student.name }}</p>
           <p><strong>Livro:</strong> {{ student.book }}</p>
           <p><strong>Lição Atual:</strong> {{ student.currentLesson }}</p>
-          <p><strong>Turma:</strong> {{ className || student.classId }}</p>
+          <p>
+            <strong>Turmas:</strong>
+            {{
+              Array.isArray(student.classIds)
+                ? classStore.getClassNamesByIds(student.classIds)
+                : student.classId
+                  ? classStore.getClassNameById(student.classId)
+                  : '—'
+            }}
+          </p>
         </div>
       </q-card-section>
 
@@ -20,8 +29,7 @@
             <q-item-section>
               <q-item-label>{{ absence.date }}</q-item-label>
               <q-item-label caption>
-                Turma: {{ classNamesMap[absence.classId] || absence.classId }} | Motivo:
-                {{ absence.reason }}
+                Turma: {{ classStore.getClassNameById(absence.classId) }}
               </q-item-label>
             </q-item-section>
           </q-item>
@@ -53,64 +61,39 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from 'src/key/configKey.js'
+import { useClassStore } from 'src/stores/classStore'
+import { storeToRefs } from 'pinia'
 
 const route = useRoute()
+const classStore = useClassStore()
+const { classMap } = storeToRefs(classStore)
 
 const student = ref(null)
 const lessons = ref([])
 const absences = ref([])
 const loadingAbsences = ref(true)
 const className = ref('')
-const classNamesMap = ref({})
-
-const columns = [
-  { name: 'id', label: 'ID', field: 'id', align: 'left' },
-  { name: 'lessonNumber', label: 'Lição', field: 'lessonNumber', align: 'left' },
-  {
-    name: 'completedAt',
-    label: 'Concluído em',
-    field: (row) =>
-      row.completedAt?.toDate
-        ? new Date(row.completedAt.toDate()).toLocaleDateString('pt-BR')
-        : '—',
-    align: 'left',
-  },
-  { name: 'notes', label: 'Anotações', field: 'notes', align: 'left' },
-  { name: 'gradeF', label: 'F', field: 'gradeF', align: 'center' },
-  { name: 'gradeA', label: 'A', field: 'gradeA', align: 'center' },
-  { name: 'gradeL', label: 'L', field: 'gradeL', align: 'center' },
-  { name: 'gradeE', label: 'E', field: 'gradeE', align: 'center' },
-  { name: 'teacherName', label: 'Professor', field: 'teacherName', align: 'left' },
-]
-
-async function fetchClassNamesForAbsences(absencesArr) {
-  const ids = [...new Set(absencesArr.map((a) => a.classId).filter(Boolean))]
-  const map = {}
-  for (const id of ids) {
-    const classRef = doc(db, 'classes', id)
-    const classSnap = await getDoc(classRef)
-    map[id] = classSnap.exists() ? classSnap.data().className || id : id
-  }
-  classNamesMap.value = map
-}
 
 // Fetch Absences
 async function fetchStudentAbsences(studentId) {
   try {
     console.log('Fetching absences for ID:', studentId)
 
-    const absencesQuery = query(collection(db, 'absences'), where('studentId', '==', studentId))
+    // Make sure classes are loaded
+    await classStore.fetchClasses()
 
+    const absencesQuery = query(collection(db, 'absences'), where('studentId', '==', studentId))
     const querySnapshot = await getDocs(absencesQuery)
+
     absences.value = querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }))
-    await fetchClassNamesForAbsences(absences.value)
+
     console.log('Absences:', absences.value)
   } catch (error) {
     console.error('Error fetching absences:', error)
@@ -133,13 +116,7 @@ async function fetchStudentData(studentId) {
 
       // Fetch class name if classId exists
       if (student.value.classId) {
-        const classRef = doc(db, 'classes', student.value.classId)
-        const classSnap = await getDoc(classRef)
-        if (classSnap.exists()) {
-          className.value = classSnap.data().className || student.value.classId
-        } else {
-          className.value = student.value.classId
-        }
+        className.value = classMap.value[student.value.classId] || student.value.classId
       } else {
         className.value = ''
       }
@@ -172,6 +149,30 @@ watch(
   },
   { immediate: true },
 )
+
+onMounted(async () => {
+  await classStore.fetchClasses()
+})
+
+const columns = [
+  { name: 'id', label: 'ID', field: 'id', align: 'left' },
+  { name: 'lessonNumber', label: 'Lição', field: 'lessonNumber', align: 'left' },
+  {
+    name: 'completedAt',
+    label: 'Concluído em',
+    field: (row) =>
+      row.completedAt?.toDate
+        ? new Date(row.completedAt.toDate()).toLocaleDateString('pt-BR')
+        : '—',
+    align: 'left',
+  },
+  { name: 'notes', label: 'Anotações', field: 'notes', align: 'left' },
+  { name: 'gradeF', label: 'F', field: 'gradeF', align: 'center' },
+  { name: 'gradeA', label: 'A', field: 'gradeA', align: 'center' },
+  { name: 'gradeL', label: 'L', field: 'gradeL', align: 'center' },
+  { name: 'gradeE', label: 'E', field: 'gradeE', align: 'center' },
+  { name: 'teacherName', label: 'Professor', field: 'teacherName', align: 'left' },
+]
 </script>
 
 <style scoped>
