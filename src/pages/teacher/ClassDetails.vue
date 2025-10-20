@@ -7,8 +7,14 @@
       <q-btn
         color="primary"
         icon="content_copy"
-        label="Copiar todos"
+        label="Copy All"
         @click="copyAllStudentsInfo"
+      />
+      <q-btn
+        color="primary"
+        icon="content_copy"
+        label="Send Email Report"
+        @click="sendEmailReport"
       />
     </div>
 
@@ -106,6 +112,7 @@ import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
+import emailServices from 'src/services/EmailServices.js'
 
 const $q = useQuasar()
 
@@ -299,6 +306,16 @@ const getNextLessonLabel = (currentLesson, book) => {
   const index = bookLessons.indexOf(String(currentLesson))
   const next = bookLessons[index + 1]
   return next
+}
+
+const sendEmailReport = async () => {
+  try {
+    await emailServices.sendAttendanceEmail(classId)
+    $q.notify({ type: 'positive', message: 'Email report sent successfully!' })
+  } catch (error) {
+    console.error('Error sending email report:', error)
+    $q.notify({ type: 'negative', message: 'Failed to send email report.' })
+  }
 }
 
 onMounted(async () => {
