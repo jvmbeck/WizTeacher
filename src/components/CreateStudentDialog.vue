@@ -2,16 +2,16 @@
   <q-dialog :model-value="modelValue" @update:model-value="emitClose" persistent>
     <q-card style="min-width: 400px">
       <q-card-section>
-        <div class="text-h6">Add New Student</div>
+        <div class="text-h6">Criar novo aluno</div>
       </q-card-section>
 
       <q-form @submit="submitStudent">
         <q-card-section class="q-gutter-md">
-          <q-input v-model="newStudent.name" label="Name" outlined dense required />
-          <q-input v-model="newStudent.book" label="Book" outlined dense required />
+          <q-input v-model="newStudent.name" label="Nome" outlined dense required />
+          <q-input v-model="newStudent.book" label="Livro" outlined dense required />
           <q-input
             v-model="newStudent.currentLesson"
-            label="Current Lesson"
+            label="Lição Atual"
             type="number"
             outlined
             dense
@@ -24,7 +24,7 @@
             option-value="id"
             emit-value
             map-options
-            label="Select Classes"
+            label="Selecionar Turmas"
             multiple
             outlined
           />

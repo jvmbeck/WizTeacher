@@ -9,6 +9,9 @@ export const useStudentStore = defineStore('studentStore', {
     async fetchStudents() {
       this.students = await StudentServices.fetchAllStudents()
     },
+    async fetchStudentById(id) {
+      return await StudentServices.fetchStudentById(id)
+    },
     async createStudent(studentData) {
       const newStudent = await StudentServices.createStudent(studentData)
       this.students.push(newStudent)

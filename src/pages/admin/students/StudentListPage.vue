@@ -46,7 +46,6 @@
                 @click="goToStudentDetails(props.row.uid)"
                 class="q-ml-xs"
               />
-              <q-btn flat icon="edit" @click="openEditDialog(props.row)" class="q-ml-sm" />
               <q-btn
                 flat
                 icon="delete"
@@ -61,11 +60,7 @@
     </q-card>
 
     <CreateStudentDialog v-model="isDialogOpen" @create="handleCreateStudent"></CreateStudentDialog>
-    <UpdateStudentDialog
-      v-model="isUpdateDialogOpen"
-      :student="selectedStudent"
-      @update="handleUpdateStudent"
-    />
+
   </q-page>
 </template>
 
@@ -77,7 +72,6 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 import CreateStudentDialog from 'src/components/CreateStudentDialog.vue'
-import UpdateStudentDialog from 'src/components/UpdateStudentDialog.vue'
 import StudentServices from 'src/services/StudentServices'
 
 const router = useRouter()
@@ -89,57 +83,36 @@ function goToStudentDetails(studentId) {
 const $q = useQuasar()
 
 const isDialogOpen = ref(false)
-const isUpdateDialogOpen = ref(false)
-const selectedStudent = ref(null)
-
-const openEditDialog = (student) => {
-  console.log('Editing student:', student)
-  selectedStudent.value = student
-  isUpdateDialogOpen.value = true
-}
 
 const handleCreateStudent = async (newStudent) => {
   try {
     console.log('Creating student:', newStudent.name)
-    $q.notify({ type: 'positive', message: 'Student added successfully' })
+    $q.notify({ type: 'positive', message: 'Aluno criado com sucesso' })
     isDialogOpen.value = false
     await studentStore.fetchStudents()
   } catch (err) {
     console.error(err)
-    $q.notify({ type: 'negative', message: 'Failed to add student' })
+    $q.notify({ type: 'negative', message: 'Falha ao criar aluno' })
   }
 }
 
-const handleUpdateStudent = async (updatedStudent) => {
-  try {
-    const oldClassIds = [...selectedStudent.value.classIds] // ✅ Backup previous classIds array
-
-    await StudentServices.updateStudent(updatedStudent.uid, updatedStudent, oldClassIds)
-
-    $q.notify({ type: 'positive', message: 'Aluno atualizado com sucesso' })
-    await studentStore.fetchStudents()
-  } catch (err) {
-    console.error(err)
-    $q.notify({ type: 'negative', message: 'Falha ao atualizar aluno' })
-  }
-}
 const confirmDelete = (student) => {
   console.log('Student to delete:', student) // ✅ check if student is defined
   console.log('Student ID:', student.uid) // ✅ check if id exists
 
   $q.dialog({
-    title: 'Confirm Deletion',
-    message: `Are you sure you want to delete ${student.name}?`,
+    title: 'Confirmar Exclusão',
+    message: `Tem certeza de que deseja excluir ${student.name}?`,
     cancel: true,
     persistent: true,
   }).onOk(async () => {
     try {
       await StudentServices.deleteStudent(student.uid)
-      $q.notify({ type: 'positive', message: 'Student deleted successfully' })
+      $q.notify({ type: 'positive', message: 'Aluno excluído com sucesso' })
       await studentStore.fetchStudents()
     } catch (error) {
       console.error(error)
-      $q.notify({ type: 'negative', message: 'Failed to delete student' })
+      $q.notify({ type: 'negative', message: 'Falha ao excluir aluno' })
     }
   })
 }
