@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <q-card class="login-card">
-      <div class="text-h4 q-ma-xl">Bem-vindo ao <span class="text-blue-10">WizTeacher</span></div>
+      <div class="text-h4 q-ma-xl">Bem-vindo ao <span class="text-blue-10 text-bold">WizTeacher</span></div>
       <div class="text-body1 text-weight-light">Faça login para continuar</div>
 
       <q-form @submit="handleLogin" @reset="onReset" class="q-gutter-md">
@@ -72,7 +72,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
+  height: 94vh;
   background-color: #f0f0f0;
 }
 
@@ -88,4 +88,50 @@ export default {
   align-items: center;
   justify-content: flex-end;
 }
+
+@media (max-width: 1200px) {
+  .login-page {
+    padding: 24px 12px;
+    height: auto;
+    background-color: #fafafa;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-card {
+    width: 94vw;
+    max-width: 420px;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    justify-content: center;
+  }
+
+  .login-card .text-h4 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+  }
+
+  .login-card .text-body1 {
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+  }
+
+  q-input {
+    font-size: 0.95rem;
+  }
+
+  .buttons-container {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .buttons-container .q-btn {
+    width: 100%;
+  }
+}
+
 </style>
