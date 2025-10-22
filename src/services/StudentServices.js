@@ -46,9 +46,30 @@ const StudentServices = {
   },
 
   async fetchStudentById(studentId) {
-    const docRef = doc(db, 'students', studentId)
-    const docSnap = await getDoc(docRef)
-    return docSnap.exists() ? docSnap.data() : null
+    if (!studentId) throw new Error('studentId is required')
+
+    try {
+      const docRef = doc(db, 'students', studentId)
+      const docSnap = await getDoc(docRef)
+
+      if (!docSnap.exists()) return null
+
+      const data = docSnap.data() || {}
+
+      return {
+        uid: docSnap.id,
+        ...data,
+        // Provide sensible defaults for commonly-used fields
+        name: data.name ?? '',
+        book: data.book ?? '',
+        currentLesson: data.currentLesson ?? '',
+        classIds: data.classIds ?? [],
+        totalAbsences: data.totalAbsences ?? 0,
+      }
+    } catch (error) {
+      console.error('fetchStudentById error:', error)
+      throw error
+    }
   },
 
   async saveLessonForStudent(studentId, lessonData) {
