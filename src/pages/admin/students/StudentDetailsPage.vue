@@ -1,10 +1,14 @@
 <template>
   <q-page padding>
     <q-btn to="/AdminDashboard/studentList" label="Voltar" color="primary" class="q-mb-md" />
-    <q-card>
-      <q-card-section>
-        <div class="text-h5">Detalhes do Aluno</div>
-        <div v-if="student">
+    <q-card flat bordered class="student-details-card">
+      <q-card-section v-if="!isEditing">
+        <div class="text-h4 card-title">Detalhes do Aluno</div>
+        <q-btn @click="isEditing = true">
+          <q-icon name="edit" class="q-mr-sm" />
+          Editar
+        </q-btn>
+        <div class="student-info" v-if="student">
           <p><strong>Nome:</strong> {{ student.name }}</p>
           <p><strong>Livro:</strong> {{ student.book }}</p>
           <p><strong>Lição Atual:</strong> {{ student.currentLesson }}</p>
@@ -20,7 +24,27 @@
           </p>
         </div>
       </q-card-section>
+      <q-card-section v-if="isEditing">
+        <div class="student-edit-form">
+          <q-input v-model="student.name" label="Nome" class="q-mb-sm" />
+          <q-input v-model="student.book" label="Livro" class="q-mb-sm" />
+          <q-input v-model="student.currentLesson" label="Lição Atual" class="q-mb-sm" />
+          <q-select
+          v-model="student.classIds"
+          :options="classOptions"
+          label="Turmas"
+          option-label="label"
+          option-value="value"
+          map-options
+          multiple
 
+        />
+          <div class="row q-gutter-sm q-pt-md">
+            <q-btn label="Salvar" color="positive" @click="saveChanges" />
+            <q-btn label="Cancelar" color="negative" flat @click="discardChanges" />
+          </div>
+        </div>
+      </q-card-section>
       <q-card-section>
         <div class="text-h6">Faltas: {{ absences.length }}</div>
         <q-spinner v-if="loadingAbsences" />
@@ -63,20 +87,28 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from 'src/key/configKey.js'
+import { useQuasar } from 'quasar'
 import { useClassStore } from 'src/stores/classStore'
 import { storeToRefs } from 'pinia'
+import { useStudentStore } from 'src/stores/studentStore'
 
+const studentStore = useStudentStore()
+const $q = useQuasar()
 const route = useRoute()
 const classStore = useClassStore()
 const { classMap } = storeToRefs(classStore)
 
+const studentId = route.params.studentId
+const isEditing = ref(false)
 const student = ref(null)
 const lessons = ref([])
 const absences = ref([])
 const loadingAbsences = ref(true)
 const className = ref('')
+const classOptions = ref([])
+
 
 // Fetch Absences
 async function fetchStudentAbsences(studentId) {
@@ -107,20 +139,15 @@ async function fetchStudentData(studentId) {
   try {
     console.log('Fetching student data for ID:', studentId)
 
-    const studentRef = doc(db, 'students', studentId)
-    const studentSnap = await getDoc(studentRef)
-
-    if (studentSnap.exists()) {
-      console.log('Student data:', studentSnap.data())
-      student.value = studentSnap.data()
+    studentStore.fetchStudentById(studentId).then(async (studentData) => {
+      if (studentData) {
+        student.value = studentData
 
       // Fetch class name if classId exists
-      if (student.value.classId) {
-        className.value = classMap.value[student.value.classId] || student.value.classId
-      } else {
-        className.value = ''
-      }
-
+      className.value = student.value.classId ? classMap.value[student.value.classId] || student.value.classId : ''
+    } else {
+      console.error('No such student found in Firestore!')
+    }
       const lessonsRef = collection(db, 'students', studentId, 'lessons')
       const lessonSnaps = await getDocs(lessonsRef)
 
@@ -128,9 +155,7 @@ async function fetchStudentData(studentId) {
         id: doc.id,
         ...doc.data(),
       }))
-    } else {
-      console.error('No such student found in Firestore!')
-    }
+    })
   } catch (error) {
     console.error('Error fetching student data:', error)
   }
@@ -141,14 +166,39 @@ watch(
   async (id) => {
     console.log('ROUTE PARAM studentId:', id)
     if (id) {
+
       await fetchStudentData(id)
       await fetchStudentAbsences(id)
+      await classStore.fetchClasses()
+      classOptions.value = classStore.classes.map((cls) => ({
+        label: cls.name || 'Unnamed Class',
+        value: cls.id,
+      }))
     } else {
       console.warn('No studentId found in route params')
     }
   },
   { immediate: true },
 )
+
+const saveChanges = async () => {
+
+  studentStore.updateStudent(studentId, student.value)
+    .then(() => {
+      isEditing.value = false
+      $q.notify({ type: 'positive', message: 'Aluno atualizado com sucesso' })
+
+    })
+    .catch((error) => {
+      console.error('Error updating student:', error)
+      $q.notify({ type: 'negative', message: 'Falha ao atualizar aluno' })
+    })
+}
+
+const discardChanges = () => {
+  isEditing.value = false
+  fetchStudentData(studentId)
+}
 
 onMounted(async () => {
   await classStore.fetchClasses()
@@ -176,8 +226,32 @@ const columns = [
 </script>
 
 <style scoped>
+.student-details-card {
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+}
+
+.student-edit-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title {
+  font-weight: bold;
+  margin-bottom: 16px;
+  align-self: center;
+  text-align: center;
+}
+
+.student-info p {
+  font-size: 1rem;  /* Increased from default */
+  margin: 4px 0;
+}
+
 .excel-style-table {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 1.1rem;  /* Added larger font size */
 }
 
 .excel-style-table .q-td,
