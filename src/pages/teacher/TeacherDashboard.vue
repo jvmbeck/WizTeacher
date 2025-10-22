@@ -19,16 +19,13 @@
         </template>
       </q-input>
     </div>
-    <q-card class="list-container shadow-16">
-      <q-card-section>
+    <div class="list-container q-mt-md q-pa-sm">
         <div class="text-h3">Lista de Turmas</div>
-      </q-card-section>
-      <q-card-section>
+
         <div class="text-subtitle2 text-weight-regular text-grey-9">
           Você tem {{ teacherClasses.length }} turma(s) cadastrada(s).
         </div>
-      </q-card-section>
-      <q-card-section>
+
         <q-list bordered separator>
           <q-item
             v-for="classItem in filteredClasses"
@@ -46,8 +43,7 @@
             </q-item-section>
           </q-item>
         </q-list>
-      </q-card-section>
-    </q-card>
+      </div>
   </div>
 </template>
 
@@ -114,4 +110,47 @@ const filteredClasses = computed(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   font-size: 1.5rem;
 }
+
+/* Mobile / small screens */
+@media (max-width: 600px) {
+  .dashboard {
+    padding: 12px;
+  }
+
+  .query-container {
+    width: 100%;
+    padding: 0 12px;
+    margin-top: 12px;
+  }
+
+  .query-input {
+    width: 100%;
+  }
+
+  .list-container {
+    width: 95vw;
+    max-height: 75vh;
+    margin-top: 12px;
+    font-size: 2rem;
+    padding: 8px;
+  }
+
+  .list-container q-card-section {
+    padding: 8px 12px;
+  }
+
+  .list-container .q-item-label {
+    font-size: 0.95rem;
+  }
+
+  .list-container .q-item-label strong {
+    font-size: 1.05rem;
+  }
+
+  .text-h3.text-center.q-mt-md {
+    font-size: 1.25rem;
+    text-align: center;
+  }
+}
+
 </style>
