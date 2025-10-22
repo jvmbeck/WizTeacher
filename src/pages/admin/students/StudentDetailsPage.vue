@@ -46,9 +46,19 @@
         </div>
       </q-card-section>
       <q-card-section>
-        <div class="text-h6">Faltas: {{ absences.length }}</div>
-        <q-spinner v-if="loadingAbsences" />
-        <q-list v-else>
+        <div class="text-h5" style="display:inline-block">Faltas: {{ absences.length }}</div>
+        <q-btn
+          dense
+          flat
+          size="sm"
+          :label="showAbsences ? 'Ocultar' : 'Mostrar'"
+          :icon="showAbsences ? 'visibility_off' : 'visibility'"
+          @click="showAbsences = !showAbsences"
+          class="q-ml-sm"
+        />
+
+        <q-spinner v-if="loadingAbsences && showAbsences" />
+        <q-list v-else-if="showAbsences">
           <q-item v-for="absence in absences" :key="absence.id">
             <q-item-section>
               <q-item-label>{{ absence.date }}</q-item-label>
@@ -57,7 +67,7 @@
               </q-item-label>
             </q-item-section>
           </q-item>
-          <q-item v-if="absences.length === 0">
+          <q-item v-if="!loadingAbsences && absences.length === 0">
             <q-item-section>Nenhuma falta registrada.</q-item-section>
           </q-item>
         </q-list>
@@ -108,6 +118,7 @@ const absences = ref([])
 const loadingAbsences = ref(true)
 const className = ref('')
 const classOptions = ref([])
+const showAbsences = ref(false)
 
 
 // Fetch Absences
