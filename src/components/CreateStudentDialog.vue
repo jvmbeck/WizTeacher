@@ -12,7 +12,6 @@
           <q-input
             v-model="newStudent.currentLesson"
             label="Lição Atual"
-            type="number"
             outlined
             dense
             required
@@ -65,7 +64,7 @@ onMounted(() => {
 const newStudent = ref({
   name: '',
   book: '',
-  currentLesson: 1,
+  currentLesson: '1',
   classIds: [],
 })
 
@@ -76,7 +75,7 @@ watch(
       newStudent.value = {
         name: '',
         book: '',
-        currentLesson: 1,
+        currentLesson: '1',
         classIds: [],
       }
       selectedClassIds.value = []
