@@ -114,9 +114,6 @@ const StudentServices = {
       console.error('❌ lessonsCompleted write error:', error.code, error.message)
     }
 
-    console.log(`Lesson ${lessonNumber} saved for student ${studentId}.`)
-    console.log('studentData.currentLesson:', studentData.currentLesson)
-
     if (lessonNumber === studentData.currentLesson) {
       const { nextLesson } = this.getNextLesson(currentLesson, book)
       console.log(
