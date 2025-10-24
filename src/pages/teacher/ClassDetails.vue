@@ -45,7 +45,7 @@
               <span class="q-ml-xs">{{ getNextLessonLabel(student.currentLesson, student.book) }}</span>
             </q-chip>
 
-            <q-chip dense outline class="q-ml-sm">{{ student.book }}</q-chip>
+            <q-chip dense outline class="q-ml-sm" color="deep-purple-9">{{ student.book }}</q-chip>
 
             <q-badge color="negative" v-if="student.isAbsentToday" class="q-ml-sm">Ausente</q-badge>
           </div>
@@ -84,7 +84,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+// changed import: add setDoc, deleteDoc, serverTimestamp
+import { doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
@@ -175,35 +176,60 @@ const handleLessonSaved = async (studentId) => {
   })
 }
 const markAbsent = async (studentId) => {
-  // Show confirmation dialog before marking absent
-  const confirmed = $q
+  if (!studentId) return
+
+  // confirmation dialog — perform toggle inside onOk so we can update UI immediately afterwards
+  $q
     .dialog({
-      title: 'Confirmar Ausência',
-      ok: 'Sim',
-      cancel: 'Não',
-      message: 'Tem certeza de que deseja marcar este aluno como ausente?',
+      title: 'Confirm absence',
+      message: 'Mark this student as absent for today? (Toggling will unmark if already absent)',
+      cancel: true,
       persistent: true,
     })
     .onOk(async () => {
       try {
-        await StudentServices.markStudentAbsent(studentId, classId)
-        $q.notify({
-          type: 'positive',
-          message: 'Aluno marcado como ausente com sucesso!',
-        })
-        await fetchStudentList() // Refresh to update absence icons
+        const today = new Date().toISOString().split('T')[0]
+        const absenceDocId = `${classId}_${studentId}_${today}`
+        const absenceRef = doc(db, 'absences', absenceDocId)
+        const absenceSnap = await getDoc(absenceRef)
+
+        if (absenceSnap.exists()) {
+          // unmark absence
+          await deleteDoc(absenceRef)
+          $q.notify({ type: 'positive', message: 'Ausência removida.' })
+        } else {
+          // mark absence
+          await setDoc(absenceRef, {
+            studentId,
+            classId,
+            date: today,
+            createdAt: serverTimestamp(),
+          })
+          $q.notify({ type: 'positive', message: 'Aluno marcado como ausente.' })
+        }
+
+        // Re-query today's absences for this class and update students in-place
+        const todayQuery = query(
+          collection(db, 'absences'),
+          where('classId', '==', classId),
+          where('date', '==', today)
+        )
+        const absSnap = await getDocs(todayQuery)
+        const absentStudentIds = absSnap.docs.map((d) => d.data().studentId)
+
+        // Update local students array without refetching everything
+        students.value = students.value.map((s) => ({
+          ...s,
+          isAbsentToday: absentStudentIds.includes(s.uid),
+        }))
       } catch (err) {
-        $q.notify({
-          type: 'negative',
-          message: `Erro ao marcar ausência: ${err.message}`,
-        })
-        console.error('Failed to mark absence:', err.message)
+        console.error('Error toggling absence:', err)
+        $q.notify({ type: 'negative', message: 'Erro ao atualizar ausência.' })
       }
     })
-    .onOk(() => true)
-    .onCancel(() => false)
-
-  if (!confirmed) return
+    .onCancel(() => {
+      // cancelled
+    })
 }
 
 const fetchStudentList = async () => {
