@@ -19,6 +19,7 @@
         </template>
       </q-input>
     </div>
+
     <div class="list-container q-mt-md q-pa-sm">
         <div class="text-h3">Lista de Turmas</div>
 
