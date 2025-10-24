@@ -1,6 +1,6 @@
 <template>
-  <q-dialog v-model="isOpen">
-    <q-card class="q-pa-md" style="min-width: 450px; max-width: 600px">
+  <q-dialog v-model="isOpen" :maximized="$q.screen.lt.sm">
+    <q-card class="q-pa-md save-lesson-card">
       <q-card-section>
         <div class="text-h6">Save Lesson Info</div>
       </q-card-section>
@@ -9,7 +9,7 @@
         <q-card-section>
           <q-input v-model="lesson.book" label="Book" />
           <q-input v-model="lesson.lessonNumber" label="Lesson #" />
-          <div class="row q-col-gutter-md">
+          <div class="row q-col-gutter-md q-gutter-y-sm">
             <q-select
               v-for="field in gradeFields"
               :key="field.key"
@@ -18,7 +18,7 @@
               :label="field.label"
               emit-value
               map-options
-              class="col"
+              class="col-6 col-md-3"
               placeholder="Selecionar nota"
             />
           </div>
