@@ -5,11 +5,18 @@
         <div class="text-h6">Save Lesson Info</div>
       </q-card-section>
 
-      <q-form v-if="!endOfBook" @submit.prevent="submitLesson">
+      <q-form v-if="!endOfBook" @submit.prevent="submitLesson" class="q-gutter-md">
         <q-card-section>
-          <q-input v-model="lesson.book" label="Book" />
-          <q-input v-model="lesson.lessonNumber" label="Lesson #" />
-          <div class="row q-col-gutter-md q-gutter-y-sm">
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-6">
+              <q-input v-model="lesson.book" label="Book" />
+            </div>
+            <div class="col-12 col-md-6">
+              <q-input v-model="lesson.lessonNumber" label="Lesson #" />
+            </div>
+          </div>
+
+          <div class="row q-col-gutter-md q-mt-md">
             <q-select
               v-for="field in gradeFields"
               :key="field.key"
@@ -23,10 +30,16 @@
             />
           </div>
 
-          <q-input v-model="lesson.notes" label="Notes" type="textarea" />
+          <q-input
+            v-model="lesson.notes"
+            label="Notes"
+            type="textarea"
+            class="q-mt-md"
+            rows="4"
+          />
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="q-mt-md">
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn type="submit" label="Save" color="primary" />
         </q-card-actions>
@@ -150,3 +163,42 @@ const submitLesson = async () => {
   isOpen.value = false
 }
 </script>
+
+<style scoped>
+.save-lesson-card {
+  width: 95vw;
+  max-width: 800px; /* increased from 600px */
+  min-width: 280px;
+}
+
+/* Desktop enhancements */
+@media (min-width: 600px) {
+  .save-lesson-card {
+    padding: 1rem;
+  }
+
+  .save-lesson-card .q-card-section {
+    padding: 1rem;
+  }
+
+  .save-lesson-card .text-h6 {
+    font-size: 1.5rem;
+  }
+
+  .save-lesson-card .q-input,
+  .save-lesson-card .q-select {
+    font-size: 1.1rem;
+  }
+
+  .save-lesson-card .q-field__label {
+    font-size: 1rem;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 599px) {
+  .save-lesson-card .q-card-section {
+    padding: 12px;
+  }
+}
+</style>
