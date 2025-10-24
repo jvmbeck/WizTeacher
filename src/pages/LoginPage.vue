@@ -4,7 +4,7 @@
       <div class="text-h4 q-ma-xl">Bem-vindo ao <span class="text-blue-10 text-bold">WizTeacher</span></div>
       <div class="text-body1 text-weight-light">Faça login para continuar</div>
 
-      <q-form @submit="handleLogin" @reset="onReset" class="q-gutter-md">
+      <q-form @submit="handleLogin" class="q-gutter-md">
         <q-input
           v-model="email"
           type="email"
@@ -21,7 +21,6 @@
           :rules="[(val) => (val && val.length > 0) || 'Por favor, digite sua senha']"
         />
         <div class="buttons-container">
-          <q-btn label="Redefinir senha" type="reset" color="primary" flat class="q-ml-sm" />
           <q-btn label="Login" type="submit" color="primary" />
         </div>
       </q-form>
