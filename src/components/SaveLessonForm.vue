@@ -5,11 +5,19 @@
         <div class="text-h6">Save Lesson Info</div>
       </q-card-section>
 
-      <q-form v-if="!endOfBook" @submit.prevent="submitLesson">
-        <q-card-section>
-          <q-input v-model="lesson.book" label="Book" />
-          <q-input v-model="lesson.lessonNumber" label="Lesson #" />
-          <div class="row q-col-gutter-md q-gutter-y-sm">
+      <q-form v-if="!endOfBook" @submit.prevent="submitLesson" class="q-gutter-md">
+        <!-- make the form section scrollable on small screens -->
+        <q-card-section class="card-body">
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-6">
+              <q-input v-model="lesson.book" label="Book" stack-label />
+            </div>
+            <div class="col-12 col-md-6">
+              <q-input v-model="lesson.lessonNumber" label="Lesson #" stack-label />
+            </div>
+          </div>
+
+          <div class="row q-col-gutter-md q-mt-md">
             <q-select
               v-for="field in gradeFields"
               :key="field.key"
@@ -20,13 +28,21 @@
               map-options
               class="col-6 col-md-3"
               placeholder="Selecionar nota"
+              stack-label
             />
           </div>
 
-          <q-input v-model="lesson.notes" label="Notes" type="textarea" />
+          <q-input
+            v-model="lesson.notes"
+            label="Notes"
+            type="textarea"
+            class="q-mt-md"
+            rows="3"
+            stack-label
+          />
         </q-card-section>
 
-        <q-card-actions align="right">
+        <q-card-actions align="right" class="q-mt-md">
           <q-btn flat label="Cancel" v-close-popup />
           <q-btn type="submit" label="Save" color="primary" />
         </q-card-actions>
@@ -150,3 +166,70 @@ const submitLesson = async () => {
   isOpen.value = false
 }
 </script>
+
+<style scoped>
+.save-lesson-card {
+  /* responsive width: wider on desktop, still fits small screens */
+  width: min(80vw, 1100px);
+  max-width: 1100px;
+  min-width: 300px;
+  box-sizing: border-box;
+  max-height: 90vh; /* prevent dialog from becoming taller than viewport */
+}
+
+/* ensure the form area can scroll when there's limited vertical space */
+.save-lesson-card .card-body {
+  overflow: auto;
+  /* subtract space for title + actions so form content fits within max-height */
+  max-height: calc(90vh - 140px);
+}
+
+/* Desktop enhancements */
+@media (min-width: 600px) {
+  .save-lesson-card {
+    padding: 1rem;
+  }
+
+  .save-lesson-card .q-card-section {
+    padding: 1rem;
+  }
+
+  .save-lesson-card .text-h6 {
+    font-size: 1.5rem;
+  }
+
+  .save-lesson-card .q-input,
+  .save-lesson-card .q-select {
+    font-size: 1.1rem;
+  }
+
+  .save-lesson-card .q-field__label {
+    font-size: 1rem;
+  }
+}
+
+/* Ensure label visibility and a bit more control height */
+.save-lesson-card .q-field__control {
+  min-height: 46px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 599px) {
+  .save-lesson-card .q-card-section {
+    padding: 12px;
+  }
+}
+
+/* Slightly more spacious layout on large screens */
+@media (min-width: 1200px) {
+  .save-lesson-card {
+    width: min(70vw, 1200px);
+    padding: 1.25rem;
+  }
+
+  .save-lesson-card .q-input,
+  .save-lesson-card .q-select {
+    font-size: 1.15rem;
+  }
+}
+</style>
