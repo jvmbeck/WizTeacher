@@ -2,6 +2,7 @@ import { signInWithEmailAndPassword, getAuth, signOut, onAuthStateChanged } from
 import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../key/configKey.js' // Adjust the import path as necessary
 import { useUserStore } from '../stores/userStore.js' // Adjust the import path as necessary
+import { Notify } from 'quasar'
 
 const AuthServices = {
   async handlePasswordAuthentication(email, password) {
@@ -11,16 +12,28 @@ const AuthServices = {
       const user = userCredential.user
 
       console.log('User signed in:', user.uid)
+
     } catch (error) {
       console.error('Error signing in:', error.message)
+      try {
+        if (typeof window !== 'undefined' && window.$q && typeof window.$q.notify === 'function') {
+          window.$q.notify({ type: 'negative', message: 'Login inválido. Por favor, verifique suas credenciais.' })
+        } else if (typeof Notify !== 'undefined' && Notify && typeof Notify.create === 'function') {
+          Notify.create({ type: 'negative', message: 'Login inválido. Por favor, verifique suas credenciais.' })
+        } else {
+          // Fallback for environments without Quasar notify available
+          console.warn('Quasar Notify not available. Falling back to alert.')
+          alert('Login inválido. Por favor, verifique suas credenciais.')
+        }
+      } catch (notifyError) {
+        console.error('Notification error:', notifyError)
+      }
     }
   },
 
   async handleSignOut() {
     try {
       await signOut(auth)
-      const userStore = useUserStore()
-      userStore.clearUser() // Clear the user store on sign out
       console.log('User signed out.')
     } catch (error) {
       console.error('Error signing out:', error.message)
@@ -36,6 +49,7 @@ const AuthServices = {
         return docSnap // Return the document snapshot
       } else {
         console.log('No such document!')
+        this.handleSignOut() // Sign out if no document found
         return null
       }
     } catch (error) {
