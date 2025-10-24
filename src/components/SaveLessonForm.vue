@@ -6,13 +6,14 @@
       </q-card-section>
 
       <q-form v-if="!endOfBook" @submit.prevent="submitLesson" class="q-gutter-md">
-        <q-card-section>
+        <!-- make the form section scrollable on small screens -->
+        <q-card-section class="card-body">
           <div class="row q-col-gutter-md">
             <div class="col-12 col-md-6">
-              <q-input v-model="lesson.book" label="Book" />
+              <q-input v-model="lesson.book" label="Book" stack-label />
             </div>
             <div class="col-12 col-md-6">
-              <q-input v-model="lesson.lessonNumber" label="Lesson #" />
+              <q-input v-model="lesson.lessonNumber" label="Lesson #" stack-label />
             </div>
           </div>
 
@@ -27,6 +28,7 @@
               map-options
               class="col-6 col-md-3"
               placeholder="Selecionar nota"
+              stack-label
             />
           </div>
 
@@ -35,7 +37,8 @@
             label="Notes"
             type="textarea"
             class="q-mt-md"
-            rows="4"
+            rows="3"
+            stack-label
           />
         </q-card-section>
 
@@ -166,9 +169,19 @@ const submitLesson = async () => {
 
 <style scoped>
 .save-lesson-card {
-  width: 95vw;
-  max-width: 800px; /* increased from 600px */
-  min-width: 280px;
+  /* responsive width: wider on desktop, still fits small screens */
+  width: min(80vw, 1100px);
+  max-width: 1100px;
+  min-width: 300px;
+  box-sizing: border-box;
+  max-height: 90vh; /* prevent dialog from becoming taller than viewport */
+}
+
+/* ensure the form area can scroll when there's limited vertical space */
+.save-lesson-card .card-body {
+  overflow: auto;
+  /* subtract space for title + actions so form content fits within max-height */
+  max-height: calc(90vh - 140px);
 }
 
 /* Desktop enhancements */
@@ -195,10 +208,28 @@ const submitLesson = async () => {
   }
 }
 
+/* Ensure label visibility and a bit more control height */
+.save-lesson-card .q-field__control {
+  min-height: 46px;
+}
+
 /* Mobile adjustments */
 @media (max-width: 599px) {
   .save-lesson-card .q-card-section {
     padding: 12px;
+  }
+}
+
+/* Slightly more spacious layout on large screens */
+@media (min-width: 1200px) {
+  .save-lesson-card {
+    width: min(70vw, 1200px);
+    padding: 1.25rem;
+  }
+
+  .save-lesson-card .q-input,
+  .save-lesson-card .q-select {
+    font-size: 1.15rem;
   }
 }
 </style>
