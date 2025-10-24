@@ -12,10 +12,12 @@
       />
       <q-btn
         color="primary"
-        icon="content_copy"
+        icon="email"
         label="Send Email Report"
         @click="sendEmailReport"
       />
+      <q-btn color="primary" icon="rate_review" label="Grade Homework" class="q-mt-md" @click="isSaveHomeworkFormOpen = true"></q-btn>
+
     </div>
 
     <q-list bordered>
@@ -95,12 +97,15 @@
 
   <!-- Import the SaveLessonForm component -->
   <SaveLessonForm
-    v-model="isFormOpen"
+    v-model="isSaveLessonFormOpen"
     :student-id="selectedStudentId"
     :student-name="selectedStudent?.name"
     :class-id="classId"
     @lessonSaved="onLessonSaved"
   />
+  <q-dialog v-model="isSaveHomeworkFormOpen" persistent>
+        <HwGradingForm @close="isSaveHomeworkFormOpen = false" :students="students"/>
+  </q-dialog>
 </template>
 
 <script setup>
@@ -113,17 +118,21 @@ import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
 import emailServices from 'src/services/EmailServices.js'
+import HwGradingForm from 'src/components/HwGradingForm.vue'
 
 const $q = useQuasar()
 
 const route = useRoute()
 const classId = route.params.id
 
+
 const classInfo = ref(null)
 const students = ref([])
 const selectedStudentId = ref(null)
 const selectedStudent = ref(null)
-const isFormOpen = ref(false)
+const isSaveLessonFormOpen = ref(false)
+const isSaveHomeworkFormOpen = ref(false)
+
 
 const copyStudentInfo = (student) => {
   const text = `${student.name} - ${student.currentLesson}/${getNextLessonLabel(student.currentLesson, student.book)} - ${student.book}`
@@ -160,7 +169,7 @@ const openLessonForm = (studentId) => {
 
   selectedStudent.value = student
   selectedStudentId.value = student.uid
-  isFormOpen.value = true
+  isSaveLessonFormOpen.value = true
 }
 
 const onLessonSaved = ({ studentId }) => {
