@@ -1,10 +1,10 @@
 <template>
   <div class="q-pa-md">
     <q-btn to="/TeacherDashboard">To Teacher Dashboard</q-btn>
-
+    <h5 class="classTile">{{ classInfo?.className }}</h5>
     <div class="class-header q-mb-md">
-      <h5>{{ classInfo?.className }}</h5>
       <q-btn
+        v-if="$q.screen.gt.sm"
         color="primary"
         icon="content_copy"
         label="Copy All"
@@ -15,82 +15,55 @@
         icon="email"
         label="Send Email Report"
         @click="sendEmailReport"
+        disabled
       />
       <q-btn color="primary" icon="rate_review" label="Grade Homework" class="q-mt-md" @click="isSaveHomeworkFormOpen = true"></q-btn>
 
     </div>
 
-    <q-list bordered>
+    <q-list bordered separator>
       <q-item v-for="student in students" :key="student.uid">
-        <q-item-section>
-          {{ student.name }} -
-          <span>
-            <span v-if="student.hasCurrentLessonSaved" class="lesson-saved">
-              {{ student.currentLesson }}
-              <q-icon
-                name="check_circle"
-                color="green"
-                size="xs"
-                class="q-ml-xs"
-                title="Primeira lição salva"
-              />
-            </span>
-
-            <span v-else class="lesson-planned">
-              {{ student.currentLesson }}
-              <q-icon
-                name="hourglass_empty"
-                color="grey"
-                size="xs"
-                class="q-ml-xs"
-                title="Próxima lição (não salva)"
-              />
-            </span>
-            <span v-if="getNextLessonLabel(student.currentLesson, student.book)">
-              /
-              <span v-if="student.hasNextLessonSaved" class="lesson-saved">
-                {{ getNextLessonLabel(student.currentLesson, student.book) }}
-                <q-icon
-                  name="check_circle"
-                  color="green"
-                  size="xs"
-                  class="q-ml-xs"
-                  title="Segunda lição salva"
-                />
-              </span>
-              <span v-else class="lesson-planned">
-                {{ getNextLessonLabel(student.currentLesson, student.book) }}
-                <q-icon
-                  name="hourglass_empty"
-                  color="grey"
-                  size="xs"
-                  class="q-ml-xs"
-                  title="Próxima lição (não salva)"
-                />
-              </span>
-            </span>
-            - {{ student.book }}
-          </span>
+        <q-item-section side top>
+          <q-avatar size="48" :color="student.isAbsentToday ? 'red-5' : 'blue-grey-10'">
+            <div style="display:flex; align-items:center; justify-content:center; height:100%; font-weight:700; color: white;">
+              {{ (student.name || '').split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase() }}
+            </div>
+          </q-avatar>
         </q-item-section>
-        <q-btn
-          flat
-          round
-          icon="content_copy"
-          size="sm"
-          @click="copyStudentInfo(student)"
-          :title="`Copiar info de ${student.name}`"
-        />
-        <q-icon v-if="student.currentLesson == null" name="check_circle" color="green" size="md" />
-        <q-icon
-          v-if="student.isAbsentToday"
-          name="event_busy"
-          color="red"
-          size="sm"
-          class="q-ml-xs"
-          title="Ausente hoje"
-        />
-        <q-btn label="Edit Lesson" @click="openLessonForm(student.uid)" />
-        <q-btn label="Mark Absent" color="negative" @click="markAbsent(student.uid)" />
+
+        <q-item-section>
+          <q-item-label class="text-weight-bold q-mb-sm">{{ student.name }}</q-item-label>
+
+          <div class="row items-center q-gutter-sm">
+            <q-chip dense :color="student.hasCurrentLessonSaved ? 'green-6' : 'grey-10'" text-color="white" outline>
+              <q-icon :name="student.hasCurrentLessonSaved ? 'check_circle' : 'hourglass_empty'" size="14" />
+              <span class="q-ml-xs">{{ student.currentLesson ?? '—' }}</span>
+            </q-chip>
+
+            <q-chip dense v-if="getNextLessonLabel(student.currentLesson, student.book)" :color="student.hasNextLessonSaved ? 'green-6' : 'grey-10'" text-color="white" outline>
+              <q-icon :name="student.hasNextLessonSaved ? 'check_circle' : 'hourglass_empty'" size="14" />
+              <span class="q-ml-xs">{{ getNextLessonLabel(student.currentLesson, student.book) }}</span>
+            </q-chip>
+
+            <q-chip dense outline class="q-ml-sm">{{ student.book }}</q-chip>
+
+            <q-badge color="negative" v-if="student.isAbsentToday" class="q-ml-sm">Ausente</q-badge>
+          </div>
+        </q-item-section>
+
+        <q-item-section side top style="display:flex; gap:8px; align-items:center;">
+            <q-btn v-if="$q.screen.gt.sm" dense round flat icon="content_copy" color="primary" @click="copyStudentInfo(student)">
+            <q-tooltip>Copiar info de {{ student.name }}</q-tooltip>
+            </q-btn>
+
+          <q-btn dense round flat icon="edit" color="primary" @click="openLessonForm(student.uid)">
+            <q-tooltip>Editar lição</q-tooltip>
+          </q-btn>
+
+          <q-btn dense round flat icon="event_busy" color="negative" @click="markAbsent(student.uid)">
+            <q-tooltip>Marcar ausente</q-tooltip>
+          </q-btn>
+        </q-item-section>
       </q-item>
     </q-list>
   </div>
@@ -333,6 +306,12 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.classTile {
+  font-size: 1.5rem;
+  font-weight: bold;
+  width: 100%;
+  text-align: center;
+}
 .class-header {
   display: flex;
   flex-direction: row;
