@@ -23,9 +23,9 @@
 
     <q-list bordered separator>
       <q-item v-for="student in students" :key="student.uid">
-        <q-item-section side top>
-          <q-avatar size="48" :color="student.isAbsentToday ? 'red-5' : 'blue-grey-10'">
-            <div style="display:flex; align-items:center; justify-content:center; height:100%; font-weight:700; color: white;">
+        <q-item-section side class="d-flex items-center justify-center">
+          <q-avatar size="80" :color="student.isAbsentToday ? 'red-5' : 'blue-8'">
+            <div class="full-center avatar-initials">
               {{ (student.name || '').split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase() }}
             </div>
           </q-avatar>
@@ -45,24 +45,63 @@
               <span class="q-ml-xs">{{ getNextLessonLabel(student.currentLesson, student.book) }}</span>
             </q-chip>
 
-            <q-chip dense outline class="q-ml-sm" color="deep-purple-9">{{ student.book }}</q-chip>
+            <q-chip dense outline class="q-ml-sm" color="blue-8">{{ student.book }}</q-chip>
 
             <q-badge color="negative" v-if="student.isAbsentToday" class="q-ml-sm">Ausente</q-badge>
           </div>
         </q-item-section>
 
         <q-item-section side top style="display:flex; gap:8px; align-items:center;">
-            <q-btn v-if="$q.screen.gt.sm" dense round flat icon="content_copy" color="primary" @click="copyStudentInfo(student)">
+          <q-btn
+            v-if="$q.screen.gt.sm"
+            dense
+            round
+            flat
+            icon="content_copy"
+            color="primary"
+            @click="copyStudentInfo(student)">
             <q-tooltip>Copiar info de {{ student.name }}</q-tooltip>
-            </q-btn>
-
-          <q-btn dense round flat icon="edit" color="primary" @click="openLessonForm(student.uid)">
-            <q-tooltip>Editar lição</q-tooltip>
           </q-btn>
 
-          <q-btn dense round flat icon="event_busy" color="negative" @click="markAbsent(student.uid)">
-            <q-tooltip>Marcar ausente</q-tooltip>
-          </q-btn>
+          <!-- Desktop version with label -->
+          <q-btn
+            v-if="$q.screen.gt.sm"
+            flat
+            color="primary"
+            icon="edit"
+            label="Edit Lesson"
+            @click="openLessonForm(student.uid)"
+          />
+          <!-- Mobile version -->
+          <q-btn
+            v-else
+            round
+            flat
+            icon="edit"
+            color="primary"
+            size="md"
+            @click="openLessonForm(student.uid)"
+          />
+
+          <!-- Desktop version with label -->
+          <q-btn
+            v-if="$q.screen.gt.sm"
+            flat
+            color="negative"
+            icon="event_busy"
+            label="Mark Absent"
+            @click="markAbsent(student.uid)"
+          />
+          <!-- Mobile version -->
+          <q-btn
+            v-else
+            round
+            flat
+            icon="event_busy"
+            color="negative"
+            size="md"
+            @click="markAbsent(student.uid)"
+          />
         </q-item-section>
       </q-item>
     </q-list>
@@ -349,4 +388,20 @@ onMounted(async () => {
   color: #21ba45; /* Quasar green */
   font-weight: bold;
 }
+
+/* Improve touch targets on mobile */
+@media (max-width: 599px) {
+  .q-item-section[side] {
+    gap: 20px !important;  /* increase spacing between buttons */
+    padding: 10px;  /* add some padding around the buttons */
+  }
+
+  /* Make icons slightly larger on mobile */
+  .q-btn ::v-deep(.q-icon) {
+    font-size: 1.6rem;
+  }
+}
+
+.full-center { display: flex; align-items: center; justify-content: center; height: 100%; }
+.avatar-initials { font-weight: 600; color: white; }
 </style>
