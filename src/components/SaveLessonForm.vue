@@ -216,7 +216,38 @@ const submitLesson = async () => {
 /* Mobile adjustments */
 @media (max-width: 599px) {
   .save-lesson-card .q-card-section {
-    padding: 12px;
+    padding: 16px;
+  }
+
+  /* Increase text size for mobile */
+  .save-lesson-card .q-field__label {
+    font-size: 1.6rem;
+  }
+
+  .save-lesson-card .q-field__native,
+  .save-lesson-card .q-field__input {
+    font-size: 2rem;
+  }
+
+  /* Increase spacing between form elements */
+  .save-lesson-card .row {
+    row-gap: 20px !important;
+  }
+
+  /* Make select boxes taller for better touch targets */
+  .save-lesson-card .q-field__control {
+    min-height: 64px;
+  }
+
+  /* Larger text for dialog title */
+  .save-lesson-card .text-h6 {
+    font-size: 1.6rem;
+  }
+
+  /* Larger buttons */
+  .save-lesson-card .q-btn {
+    padding: 8px 24px;
+    font-size: 1rem;
   }
 }
 
