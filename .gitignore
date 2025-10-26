@@ -36,4 +36,8 @@ yarn-error.log*
 key/
 key//configKey.js
 
-# 
+# Firebase hosting files
+/firebase-debug.log
+.firebase/
+.firebase/hosting.ZGlzdFxzcGE.cache
+.firebase

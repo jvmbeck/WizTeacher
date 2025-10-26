@@ -123,8 +123,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-// changed import: add setDoc, deleteDoc, serverTimestamp
-import { doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
@@ -228,7 +227,7 @@ const markAbsent = async (studentId) => {
     .onOk(async () => {
       try {
         const today = new Date().toISOString().split('T')[0]
-        const absenceDocId = `${classId}_${studentId}_${today}`
+        const absenceDocId = `${studentId}_${classId}_${today}`
         const absenceRef = doc(db, 'absences', absenceDocId)
         const absenceSnap = await getDoc(absenceRef)
 
@@ -242,7 +241,6 @@ const markAbsent = async (studentId) => {
             studentId,
             classId,
             date: today,
-            createdAt: serverTimestamp(),
           })
           $q.notify({ type: 'positive', message: 'Aluno marcado como ausente.' })
         }
