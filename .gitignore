@@ -1,6 +1,13 @@
+# --- Node / Quasar / Build ---
+node_modules/
+dist/
+!.gitkeep  # allow empty folders tracked if needednode_modules
+
+# --- OS / Editor ---
 .DS_Store
-.thumbs.db
-node_modules
+Thumbs.db
+.idea/
+.vscode/
 
 # Quasar core related directories
 .quasar
@@ -40,4 +47,7 @@ key//configKey.js
 /firebase-debug.log
 .firebase/
 .firebase/hosting.ZGlzdFxzcGE.cache
-.firebase
+
+# --- Temporary files ---
+*.local
+*.tmp
