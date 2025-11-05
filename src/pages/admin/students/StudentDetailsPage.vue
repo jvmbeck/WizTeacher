@@ -30,14 +30,13 @@
           <q-input v-model="student.book" label="Livro" class="q-mb-sm" />
           <q-input v-model="student.currentLesson" label="Lição Atual" class="q-mb-sm" />
           <q-select
-          v-model="student.classIds"
-          :options="classOptions"
-          label="Turmas"
-          option-label="label"
-          option-value="value"
-          map-options
-          multiple
-
+            v-model="student.classIds"
+            :options="classOptions"
+            label="Turmas"
+            option-label="label"
+            option-value="value"
+            map-options
+            multiple
         />
           <div class="row q-gutter-sm q-pt-md">
             <q-btn label="Salvar" color="positive" @click="saveChanges" />
