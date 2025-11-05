@@ -21,7 +21,19 @@ const ClassServices = {
       throw new Error('Missing required fields')
     }
 
-    const className = `${classDays.join('-')} ${schedule} - ${classType}`
+    const dayNamesMap = {
+    0: 'Domingo',
+    1: 'Segunda',
+    2: 'Terça',
+    3: 'Quarta',
+    4: 'Quinta',
+    5: 'Sexta',
+    6: 'Sábado',
+  }
+
+    const dayNames = classDays.map(dayNum => dayNamesMap[dayNum])
+
+    const className = `${dayNames.join('-')} ${schedule} - ${classType}`
 
     const classData = {
       className,
@@ -29,6 +41,8 @@ const ClassServices = {
       schedule,
       teacherId,
       studentIds: [],
+      unschedules: [],
+      replenishments: [],
       classType,
       classDuration,
     }
