@@ -21,6 +21,36 @@ import { useUserStore } from 'src/stores/userStore.js'
 
 const userStore = useUserStore()
 // Ensure userStore is imported and used correctly
+
+/**
+ * Returns the next date (Date object) after `today` that matches any weekday
+ * in classDays (array of numbers 0..6). Always returns the nearest future occurrence (1..7 days ahead).
+ */
+function formatLocalDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function findNextClassDate(today, classDays) {
+  // normalize classDays to numbers and unique
+  const daysSet = Array.from(
+    new Set((classDays || []).map(d => Number(d)).filter(n => !Number.isNaN(n) && n >= 0 && n <= 6))
+  );
+
+  if (daysSet.length === 0) return null;
+
+  for (let i = 1; i <= 7; i++) {
+    const candidate = new Date(today);
+    candidate.setDate(today.getDate() + i);
+    const w = candidate.getDay();
+    if (daysSet.includes(w)) {
+      // return a new Date at local midnight to be safe
+      return new Date(candidate.getFullYear(), candidate.getMonth(), candidate.getDate());
+    }
+  }
+
+  return null; // should never happen
+}
+
 const StudentServices = {
   async fetchAllStudents() {
     const snapshot = await getDocs(collection(db, 'students'))
@@ -180,8 +210,8 @@ const StudentServices = {
         studentId,
         classId,
         date: today,
-        reason: 'Absent',
-        markedAt: serverTimestamp(),
+        reason: 'Não estava presente na aula',
+        createdAt: serverTimestamp(),
       })
 
       // Write: increment totalAbsences
@@ -213,8 +243,6 @@ const StudentServices = {
   },
 
   async updateStudent(studentId, updatedData, oldClassIds = []) {
-    console.log('Updating student:', studentId, updatedData)
-
     const studentRef = doc(db, 'students', studentId)
 
     const { name, book, currentLesson, classIds } = updatedData
@@ -302,6 +330,96 @@ const StudentServices = {
       classIds: arrayRemove(classId),
     })
   },
+
+  async unscheduleStudent(classId, studentId) {
+  const classRef = doc(db, "classes", classId);
+  const classSnap = await getDoc(classRef);
+
+  if (!classSnap.exists()) {
+    return { success: false, reason: "Class not found" };
+  }
+
+  const classData = classSnap.data();
+  const classDays = classData.classDays || [];
+  const existingUnschedules = classData.unscheduledStudents || {}; // keep field name consistent with your DB
+
+  const today = new Date();
+  const nextClassDate = findNextClassDate(today, classDays);
+
+  if (!nextClassDate) {
+    return { success: false, reason: "Could not determine next class date" };
+  }
+
+  const dateKey = formatLocalDateKey(nextClassDate);
+  const updatedUnschedules = { ...existingUnschedules };
+
+  // Check duplicate only for that next date
+  if (Array.isArray(updatedUnschedules[dateKey]) && updatedUnschedules[dateKey].includes(studentId)) {
+    return { success: false, reason: "Already unscheduled for this date", dateKey };
+  }
+
+  if (!updatedUnschedules[dateKey]) updatedUnschedules[dateKey] = [studentId];
+  else updatedUnschedules[dateKey].push(studentId);
+
+  // Update DB
+  await updateDoc(classRef, { unscheduledStudents: updatedUnschedules });
+
+  // Add absence record
+  await addDoc(collection(db, "absences"), {
+    studentId,
+    classId,
+    date: dateKey,
+    recordedAt: new Date(),
+    type: "unschedule",
+  });
+
+  console.log(`✅ Unscheduled student ${studentId} for ${dateKey}`);
+  return { success: true, dateKey };
+},
+
+async addReplenishmentStudent(classId, studentId) {
+  const classRef = doc(db, "classes", classId);
+  const classSnap = await getDoc(classRef);
+
+  if (!classSnap.exists()) {
+    return { success: false, reason: "Class not found" };
+  }
+
+  const classData = classSnap.data();
+  const classDays = classData.classDays || [];
+  const existingReplenishments = classData.replenishmentStudents || {};
+
+  const today = new Date();
+  const nextClassDate = findNextClassDate(today, classDays);
+
+  if (!nextClassDate) {
+    return { success: false, reason: "Could not determine next class date" };
+  }
+
+  const dateKey = formatLocalDateKey(nextClassDate);
+  const updatedReplenishments = { ...existingReplenishments };
+
+  // ✅ Check if the student already exists for this date
+  if (
+    Array.isArray(updatedReplenishments[dateKey]) &&
+    updatedReplenishments[dateKey].includes(studentId)
+  ) {
+    return { success: false, reason: "Already added for this date", dateKey };
+  }
+
+  // ✅ Add student to replenishment list for that date
+  if (!updatedReplenishments[dateKey]) {
+    updatedReplenishments[dateKey] = [studentId];
+  } else {
+    updatedReplenishments[dateKey].push(studentId);
+  }
+
+  await updateDoc(classRef, { replenishmentStudents: updatedReplenishments });
+
+  console.log(`✅ Added replenishment student ${studentId} for ${dateKey}`);
+  return { success: true, dateKey };
+}
+
 }
 
 export default StudentServices
