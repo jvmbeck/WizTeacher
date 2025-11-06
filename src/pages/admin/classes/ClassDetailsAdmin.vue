@@ -19,6 +19,12 @@
       <q-separator />
 
       <q-btn
+        label="Adicionar aluno à turma"
+        color="primary"
+        @click="openAddStudentDialog()"
+        class="q-mb-md"
+      />
+      <q-btn
         label="Adicionar aluno de reposição à turma"
         color="primary"
         @click="openAddStudentDialog()"
@@ -51,7 +57,7 @@
                   flat
                   color="negative"
                   icon="event_busy"
-                  @click="StudentServices.unscheduleClassForStudent(student.id, classId)"
+                  @click="StudentServices.unscheduleStudent(classId, student.id)"
                 >
                   <q-tooltip>Desmarcar próxima aula</q-tooltip>
                 </q-btn>
@@ -150,19 +156,6 @@
         </q-card-section>
 
         <q-card-section>
-          <q-input
-            v-model="studentSearch"
-            dense
-            filled
-            label="Buscar aluno"
-            clearable
-            class="q-mb-md"
-          >
-            <template v-slot:prepend>
-              <q-icon name="search" />
-            </template>
-          </q-input>
-
           <q-select
             v-model="selectedStudentId"
             :options="filteredStudents"
@@ -197,6 +190,54 @@
             color="primary"
             :disable="!selectedStudentId"
             @click="addStudentToClass"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <!-- Add Replenishment Student Dialog -->
+     <q-dialog v-model="isAddDialogOpen">
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center">
+          <div class="text-h6">Selecionar Aluno</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
+          <q-select
+            v-model="selectedStudentId"
+            :options="filteredStudents"
+            label="Aluno"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            dense
+            filled
+            use-input
+            hide-selected
+            fill-input
+            input-debounce="0"
+            @filter="filterStudents"
+          >
+            <template v-slot:no-option>
+              <q-item>
+                <q-item-section class="text-grey">
+                  Nenhum aluno encontrado
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancelar" v-close-popup />
+          <q-btn
+            flat
+            label="Adicionar"
+            color="primary"
+            :disable="!selectedStudentId"
+            @click="addReplenishmentStudentToClass()"
           />
         </q-card-actions>
       </q-card>
@@ -241,7 +282,6 @@ const teacherName = ref('')
 const selectedStudentId = ref(null)
 const availableStudents = ref([]) // { label: 'Name', value: 'id' }
 const classInfo = ref(null)
-const studentSearch = ref('')
 const filteredStudents = ref([])
 
 function formatDate(timestamp) {
@@ -309,6 +349,20 @@ const addStudentToClass = async () => {
     await fetchClassDetails()
   } catch (err) {
     console.error('Erro ao adicionar aluno à turma:', err)
+  }
+}
+
+const addReplenishmentStudentToClass = async () => {
+  if (!selectedStudentId.value) return
+
+  try {
+    await ClassServices.addReplenishmentStudentToClassAdmin(classId, selectedStudentId.value)
+    isAddDialogOpen.value = false
+    selectedStudentId.value = null
+    await fetchAvailableStudents()
+    await fetchClassDetails()
+  } catch (err) {
+    console.error('Erro ao adicionar aluno de reposição à turma:', err)
   }
 }
 
