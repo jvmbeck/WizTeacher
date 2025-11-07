@@ -75,10 +75,12 @@ import books from '../data/bookStructure.json'
 import { getAuth } from 'firebase/auth'
 
 const props = defineProps({
-  modelValue: Boolean,
   studentId: String,
   studentName: String,
   classId: String,
+  initialBook: String, // Add this
+  initialLesson: String, // Add this
+  modelValue: Boolean,
 })
 
 const pendingCheck = ref(false)
@@ -88,12 +90,8 @@ const emit = defineEmits(['update:modelValue', 'lessonSaved'])
 const endOfBook = ref(false)
 const isOpen = ref(props.modelValue)
 const lesson = ref({
-  book: '',
-  lessonNumber: '',
-  gradeF: '',
-  gradeA: '',
-  gradeL: '',
-  gradeE: ' ',
+  book: props.initialBook || '',
+  lessonNumber: props.initialLesson || '',
   notes: '',
 })
 
@@ -122,7 +120,8 @@ watch(
       const studentDoc = await StudentServices.fetchStudentById(props.studentId)
       if (!studentDoc) return
 
-      const book = studentDoc.book || ''
+      // Use props.initialBook instead of studentDoc.book
+      const book = props.initialBook || studentDoc.book || ''
       const bookLessons = books[book]
 
       if (!bookLessons) {
@@ -132,11 +131,12 @@ watch(
         return
       }
 
-      const currentLesson = studentDoc.currentLesson
+      // Use props.initialLesson instead of studentDoc.currentLesson
+      const lessonNumber = props.initialLesson || studentDoc.currentLesson
 
-      const currentIndex = bookLessons.indexOf(String(currentLesson))
+      const currentIndex = bookLessons.indexOf(String(lessonNumber))
 
-      // If currentLesson is not in list OR it's beyond the last index => book finished
+      // If lessonNumber is not in list OR it's beyond the last index => book finished
       const isEndOfBook = currentIndex === -1 || currentIndex >= bookLessons.length
 
       if (isEndOfBook) {
@@ -145,10 +145,10 @@ watch(
         return
       }
 
-      // Otherwise, load current lesson for grading
+      // Otherwise, load lesson for grading using provided values
       lesson.value = {
         book,
-        lessonNumber: String(currentLesson),
+        lessonNumber: String(lessonNumber),
         notes: '',
       }
       endOfBook.value = false
