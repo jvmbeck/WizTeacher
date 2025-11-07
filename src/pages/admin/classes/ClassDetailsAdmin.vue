@@ -27,7 +27,7 @@
       <q-btn
         label="Adicionar aluno de reposição à turma"
         color="primary"
-        @click="openAddStudentDialog()"
+        @click="openAddReplenishmentStudentDialog()"
         class="q-mb-md"
       />
 
@@ -202,7 +202,7 @@
       </q-card>
     </q-dialog>
     <!-- Add Replenishment Student Dialog -->
-    <q-dialog v-model="isAddDialogOpen">
+    <q-dialog v-model="isAddReplenishmentDialogOpen">
       <q-card style="min-width: 500px">
         <q-card-section class="row items-center">
           <div class="text-h6">Selecionar Aluno</div>
@@ -276,6 +276,7 @@ const classId = route.params.classId
 
 const editDialog = ref(false)
 const isAddDialogOpen = ref(false)
+const isAddReplenishmentDialogOpen = ref(false)
 const isDialogOpen = ref(false)
 const selectedStudent = ref(null)
 const absences = ref([])
@@ -315,6 +316,12 @@ async function openStudentDialog(studentId) {
 function openAddStudentDialog() {
   fetchAvailableStudents()
   isAddDialogOpen.value = true
+  selectedStudentId.value = null
+}
+
+function openAddReplenishmentStudentDialog() {
+  fetchAvailableStudents()
+  isAddReplenishmentDialogOpen.value = true
   selectedStudentId.value = null
 }
 
