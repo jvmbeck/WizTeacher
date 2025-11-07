@@ -10,10 +10,15 @@
         <q-card-section class="card-body">
           <div class="row q-col-gutter-md">
             <div class="col-12 col-md-6">
-              <q-input v-model="lesson.book" label="Book" stack-label />
+              <q-input v-model="lesson.book" label="Book" stack-label :disable="pendingCheck" />
             </div>
             <div class="col-12 col-md-6">
-              <q-input v-model="lesson.lessonNumber" label="Lesson #" stack-label />
+              <q-input
+                v-model="lesson.lessonNumber"
+                label="Lesson #"
+                stack-label
+                :disable="pendingCheck"
+              />
             </div>
           </div>
 
@@ -29,6 +34,7 @@
               class="col-6 col-md-3"
               placeholder="Selecionar nota"
               stack-label
+              :disable="pendingCheck"
             />
           </div>
 
@@ -39,7 +45,15 @@
             class="q-mt-md"
             rows="3"
             stack-label
+            :disable="pendingCheck"
           />
+          <q-toggle
+            label="Pending Check"
+            v-model="pendingCheck"
+            keep-color
+            icon="hourglass_top"
+            size="xl"
+          ></q-toggle>
         </q-card-section>
 
         <q-card-actions align="right" class="q-mt-md">
@@ -61,23 +75,23 @@ import books from '../data/bookStructure.json'
 import { getAuth } from 'firebase/auth'
 
 const props = defineProps({
-  modelValue: Boolean,
   studentId: String,
   studentName: String,
   classId: String,
+  initialBook: String, // Add this
+  initialLesson: String, // Add this
+  modelValue: Boolean,
 })
+
+const pendingCheck = ref(false)
 
 const emit = defineEmits(['update:modelValue', 'lessonSaved'])
 
 const endOfBook = ref(false)
 const isOpen = ref(props.modelValue)
 const lesson = ref({
-  book: '',
-  lessonNumber: '',
-  gradeF: '',
-  gradeA: '',
-  gradeL: '',
-  gradeE: ' ',
+  book: props.initialBook || '',
+  lessonNumber: props.initialLesson || '',
   notes: '',
 })
 
@@ -106,7 +120,8 @@ watch(
       const studentDoc = await StudentServices.fetchStudentById(props.studentId)
       if (!studentDoc) return
 
-      const book = studentDoc.book || ''
+      // Use props.initialBook instead of studentDoc.book
+      const book = props.initialBook || studentDoc.book || ''
       const bookLessons = books[book]
 
       if (!bookLessons) {
@@ -116,11 +131,12 @@ watch(
         return
       }
 
-      const currentLesson = studentDoc.currentLesson
+      // Use props.initialLesson instead of studentDoc.currentLesson
+      const lessonNumber = props.initialLesson || studentDoc.currentLesson
 
-      const currentIndex = bookLessons.indexOf(String(currentLesson))
+      const currentIndex = bookLessons.indexOf(String(lessonNumber))
 
-      // If currentLesson is not in list OR it's beyond the last index => book finished
+      // If lessonNumber is not in list OR it's beyond the last index => book finished
       const isEndOfBook = currentIndex === -1 || currentIndex >= bookLessons.length
 
       if (isEndOfBook) {
@@ -129,13 +145,14 @@ watch(
         return
       }
 
-      // Otherwise, load current lesson for grading
+      // Otherwise, load lesson for grading using provided values
       lesson.value = {
         book,
-        lessonNumber: String(currentLesson),
+        lessonNumber: String(lessonNumber),
         notes: '',
       }
       endOfBook.value = false
+      pendingCheck.value = false
     }
   },
 )
@@ -155,16 +172,34 @@ const submitLesson = async () => {
   }
 
   // Save lesson info
-
-  StudentServices.saveLessonForStudent(props.studentId, {
-    ...lesson.value,
-    studentName: props.studentName,
-    classId: props.classId,
-  })
+  if (pendingCheck.value) {
+    StudentServices.savePendingLessonForStudent(props.studentId, {
+      ...lesson.value,
+      studentName: props.studentName,
+      classId: props.classId,
+    })
+  } else {
+    StudentServices.saveLessonForStudent(props.studentId, {
+      ...lesson.value,
+      studentName: props.studentName,
+      classId: props.classId,
+    })
+  }
 
   emit('lessonSaved', { studentId: props.studentId, newLessonNumber: lesson.value.lessonNumber })
   isOpen.value = false
 }
+
+// Clear all grade selects when pendingCheck becomes true
+watch(pendingCheck, (val) => {
+  if (val && lesson.value) {
+    gradeFields.forEach((f) => {
+      if (Object.prototype.hasOwnProperty.call(lesson.value, f.key)) {
+        lesson.value[f.key] = ''
+      }
+    })
+  }
+})
 </script>
 
 <style scoped>
