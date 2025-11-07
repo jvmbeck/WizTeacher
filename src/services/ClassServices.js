@@ -13,6 +13,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
+import { getNextClassDayKey } from '../utils/dateHelpers.js'
 //import { useUserStore } from '../stores/userStore.js'
 
 const ClassServices = {
@@ -168,6 +169,21 @@ const ClassServices = {
       studentIds: arrayRemove(studentId),
     })
   },
-}
 
+  getUnscheduledForNextClass(classInfo) {
+    const nextDateKey = getNextClassDayKey(classInfo)
+    if (!nextDateKey) return []
+
+    const unscheduled = classInfo.unscheduledStudents || {}
+    return unscheduled[nextDateKey] || []
+  },
+
+  getReplenishmentsForNextClass(classInfo) {
+    const nextDateKey = getNextClassDayKey(classInfo)
+    if (!nextDateKey) return []
+
+    const replenishments = classInfo.replenishmentStudents || {}
+    return replenishments[nextDateKey] || []
+  }
+}
 export default ClassServices
