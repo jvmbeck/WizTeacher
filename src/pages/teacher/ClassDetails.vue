@@ -17,16 +17,33 @@
         @click="sendEmailReport"
         disabled
       />
-      <q-btn color="primary" icon="rate_review" label="Grade Homework" class="q-mt-md" @click="isSaveHomeworkFormOpen = true"></q-btn>
-
+      <q-btn
+        color="primary"
+        icon="rate_review"
+        label="Grade Homework"
+        class="q-mt-md"
+        @click="isSaveHomeworkFormOpen = true"
+      ></q-btn>
     </div>
 
     <q-list bordered separator>
       <q-item v-for="student in students" :key="student.uid">
         <q-item-section side class="d-flex items-center justify-center">
-          <q-avatar size="80" :color="student.isAbsentToday ? 'red-5' : 'blue-8'">
+          <q-avatar
+            size="80"
+            :color="
+              student.isAbsentToday ? 'red-5' : student.isReplenishment ? 'amber-9' : 'blue-8'
+            "
+          >
             <div class="full-center avatar-initials">
-              {{ (student.name || '').split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase() }}
+              {{
+                (student.name || '')
+                  .split(' ')
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()
+              }}
             </div>
           </q-avatar>
         </q-item-section>
@@ -35,23 +52,45 @@
           <q-item-label class="text-weight-bold q-mb-sm">{{ student.name }}</q-item-label>
 
           <div class="row items-center q-gutter-sm">
-            <q-chip dense :color="student.hasCurrentLessonSaved ? 'green-6' : 'grey-10'" text-color="white" outline>
-              <q-icon :name="student.hasCurrentLessonSaved ? 'check_circle' : 'hourglass_empty'" size="14" />
+            <q-chip
+              dense
+              :color="student.hasCurrentLessonSaved ? 'green-6' : 'grey-10'"
+              text-color="white"
+              outline
+            >
+              <q-icon
+                :name="student.hasCurrentLessonSaved ? 'check_circle' : 'hourglass_empty'"
+                size="14"
+              />
               <span class="q-ml-xs">{{ student.currentLesson ?? '—' }}</span>
             </q-chip>
 
-            <q-chip dense v-if="getNextLessonLabel(student.currentLesson, student.book)" :color="student.hasNextLessonSaved ? 'green-6' : 'grey-10'" text-color="white" outline>
-              <q-icon :name="student.hasNextLessonSaved ? 'check_circle' : 'hourglass_empty'" size="14" />
-              <span class="q-ml-xs">{{ getNextLessonLabel(student.currentLesson, student.book) }}</span>
+            <q-chip
+              dense
+              v-if="getNextLessonLabel(student.currentLesson, student.book)"
+              :color="student.hasNextLessonSaved ? 'green-6' : 'grey-10'"
+              text-color="white"
+              outline
+            >
+              <q-icon
+                :name="student.hasNextLessonSaved ? 'check_circle' : 'hourglass_empty'"
+                size="14"
+              />
+              <span class="q-ml-xs">{{
+                getNextLessonLabel(student.currentLesson, student.book)
+              }}</span>
             </q-chip>
 
             <q-chip dense outline class="q-ml-sm" color="blue-8">{{ student.book }}</q-chip>
 
             <q-badge color="negative" v-if="student.isAbsentToday" class="q-ml-sm">Ausente</q-badge>
+            <q-badge color="amber-9" v-if="student.isReplenishment" class="q-ml-sm"
+              >Reposição</q-badge
+            >
           </div>
         </q-item-section>
 
-        <q-item-section side top style="display:flex; gap:8px; align-items:center;">
+        <q-item-section side top style="display: flex; gap: 8px; align-items: center">
           <q-btn
             v-if="$q.screen.gt.sm"
             dense
@@ -59,7 +98,8 @@
             flat
             icon="content_copy"
             color="primary"
-            @click="copyStudentInfo(student)">
+            @click="copyStudentInfo(student)"
+          >
             <q-tooltip>Copiar info de {{ student.name }}</q-tooltip>
           </q-btn>
 
@@ -116,27 +156,37 @@
     @lessonSaved="onLessonSaved"
   />
   <q-dialog v-model="isSaveHomeworkFormOpen" persistent>
-        <HwGradingForm @close="isSaveHomeworkFormOpen = false" :students="students"/>
+    <HwGradingForm @close="isSaveHomeworkFormOpen = false" :students="students" />
   </q-dialog>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  setDoc,
+  deleteDoc,
+} from 'firebase/firestore'
 import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
+import classServices from '../../services/ClassServices.js'
 import SaveLessonForm from 'src/components/SaveLessonForm.vue'
 import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
 import emailServices from 'src/services/EmailServices.js'
 import HwGradingForm from 'src/components/HwGradingForm.vue'
+import { getNextClassDayKey } from 'src/utils/dateHelpers.js'
 
 const $q = useQuasar()
 
 const route = useRoute()
 const classId = route.params.id
-
 
 const classInfo = ref(null)
 const students = ref([])
@@ -144,7 +194,6 @@ const selectedStudentId = ref(null)
 const selectedStudent = ref(null)
 const isSaveLessonFormOpen = ref(false)
 const isSaveHomeworkFormOpen = ref(false)
-
 
 const copyStudentInfo = (student) => {
   const text = `${student.name} - ${student.currentLesson}/${getNextLessonLabel(student.currentLesson, student.book)} - ${student.book}`
@@ -217,13 +266,12 @@ const markAbsent = async (studentId) => {
   if (!studentId) return
 
   // confirmation dialog — perform toggle inside onOk so we can update UI immediately afterwards
-  $q
-    .dialog({
-      title: 'Confirm absence',
-      message: 'Mark this student as absent for today? (Toggling will unmark if already absent)',
-      cancel: true,
-      persistent: true,
-    })
+  $q.dialog({
+    title: 'Confirm absence',
+    message: 'Mark this student as absent for today? (Toggling will unmark if already absent)',
+    cancel: true,
+    persistent: true,
+  })
     .onOk(async () => {
       try {
         const today = new Date().toISOString().split('T')[0]
@@ -249,7 +297,7 @@ const markAbsent = async (studentId) => {
         const todayQuery = query(
           collection(db, 'absences'),
           where('classId', '==', classId),
-          where('date', '==', today)
+          where('date', '==', today),
         )
         const absSnap = await getDocs(todayQuery)
         const absentStudentIds = absSnap.docs.map((d) => d.data().studentId)
@@ -270,77 +318,97 @@ const markAbsent = async (studentId) => {
 }
 
 const fetchStudentList = async () => {
+  // 1️⃣ Fetch class data
   const classSnap = await getDoc(doc(db, 'classes', classId))
   if (!classSnap.exists()) return
 
   classInfo.value = classSnap.data()
 
-  if (classInfo.value.studentIds?.length) {
-    // Fetch students
-    const studentList = await StudentServices.fetchStudentsByIds(classInfo.value.studentIds)
+  // 2️⃣ Determine next class day key using your helper
+  const nextClassDay = getNextClassDayKey(classInfo.value)
+  if (!nextClassDay) {
+    console.warn('Could not determine next class day.')
+    return
+  }
 
-    // Fetch today's absences for this class
-    const today = new Date().toISOString().split('T')[0]
-    const absencesQuery = query(
-      collection(db, 'absences'),
-      where('classId', '==', classId),
-      where('date', '==', today),
-    )
-    const absencesSnap = await getDocs(absencesQuery)
-    const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
+  // 3️⃣ Build effective list of student IDs
+  let effectiveStudentIds = [...(classInfo.value.studentIds || [])]
 
-    // Annotate students with absence status
-    let sortedStudents = studentList.map((student) => ({
-      ...student,
-      isAbsentToday: absentStudentIds.includes(student.uid),
-    }))
+  // 🔸 Remove unscheduled students
+  const unscheduledForDay = classServices.getUnscheduledForNextClass(classInfo.value)
+  effectiveStudentIds = effectiveStudentIds.filter((id) => !unscheduledForDay.includes(id))
 
-    // Custom sort: group (even, odd, 'R'), then lesson descending, then name
-    sortedStudents = sortedStudents.sort((a, b) => {
-      const getCategory = (student) => {
-        if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R')) {
-          return 2 // 'R' lessons last
-        }
-        const lessonNum = parseInt(student.currentLesson, 10)
-        if (!isNaN(lessonNum)) {
-          return lessonNum % 2 === 0 ? 0 : 1 // Even first, then odd
-        }
-        return 3 // fallback (put at end)
-      }
-
-      const catA = getCategory(a)
-      const catB = getCategory(b)
-      if (catA !== catB) return catA - catB
-
-      // Within group: sort by lesson number descending (higher first)
-      const getLessonNum = (student) => {
-        if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R'))
-          return -1
-        const n = parseInt(student.currentLesson, 10)
-        return isNaN(n) ? -1 : n
-      }
-      const lessonDiff = getLessonNum(b) - getLessonNum(a)
-      if (lessonDiff !== 0) return lessonDiff
-
-      // If lesson is the same, sort by name
-      return a.name.localeCompare(b.name)
-    })
-
-    students.value = sortedStudents
-
-    for (const student of sortedStudents) {
-      student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
-        student,
-        student.book,
-        student.currentLesson,
-      )
-      const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
-      student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
-        student,
-        student.book,
-        nextLesson,
-      )
+  // 🔸 Add replenishment students
+  const replenishmentForDay = classServices.getReplenishmentsForNextClass(classInfo.value)
+  for (const id of replenishmentForDay) {
+    if (!effectiveStudentIds.includes(id)) {
+      effectiveStudentIds.push(id)
     }
+  }
+
+  // 4️⃣ Fetch students by final list
+  const studentList = await StudentServices.fetchStudentsByIds(effectiveStudentIds)
+
+  // 5️⃣ Fetch today's absences
+  const today = new Date().toISOString().split('T')[0]
+  const absencesQuery = query(
+    collection(db, 'absences'),
+    where('classId', '==', classId),
+    where('date', '==', today),
+  )
+  const absencesSnap = await getDocs(absencesQuery)
+  const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
+
+  // 6️⃣ Annotate students with absence + replenishment status
+  let annotatedStudents = studentList.map((student) => ({
+    ...student,
+    isAbsentToday: absentStudentIds.includes(student.uid),
+    isReplenishment: replenishmentForDay.includes(student.uid),
+  }))
+
+  // 7️⃣ Sort students
+  annotatedStudents = annotatedStudents.sort((a, b) => {
+    const getCategory = (student) => {
+      if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R'))
+        return 2
+      const lessonNum = parseInt(student.currentLesson, 10)
+      if (!isNaN(lessonNum)) return lessonNum % 2 === 0 ? 0 : 1
+      return 3
+    }
+
+    const catA = getCategory(a)
+    const catB = getCategory(b)
+    if (catA !== catB) return catA - catB
+
+    const getLessonNum = (student) => {
+      if (typeof student.currentLesson === 'string' && student.currentLesson.startsWith('R'))
+        return -1
+      const n = parseInt(student.currentLesson, 10)
+      return isNaN(n) ? -1 : n
+    }
+
+    const lessonDiff = getLessonNum(b) - getLessonNum(a)
+    if (lessonDiff !== 0) return lessonDiff
+
+    return a.name.localeCompare(b.name)
+  })
+
+  students.value = annotatedStudents
+
+  // 8️⃣ Fetch lesson completion info
+  for (const student of annotatedStudents) {
+    student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
+      student,
+      student.book,
+      student.currentLesson,
+    )
+
+    const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
+    student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
+      student,
+      student.book,
+      nextLesson,
+    )
   }
 }
 
@@ -390,8 +458,8 @@ onMounted(async () => {
 /* Improve touch targets on mobile */
 @media (max-width: 599px) {
   .q-item-section[side] {
-    gap: 20px !important;  /* increase spacing between buttons */
-    padding: 10px;  /* add some padding around the buttons */
+    gap: 20px !important; /* increase spacing between buttons */
+    padding: 10px; /* add some padding around the buttons */
   }
 
   /* Make icons slightly larger on mobile */
@@ -400,6 +468,14 @@ onMounted(async () => {
   }
 }
 
-.full-center { display: flex; align-items: center; justify-content: center; height: 100%; }
-.avatar-initials { font-weight: 600; color: white; }
+.full-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.avatar-initials {
+  font-weight: 600;
+  color: white;
+}
 </style>
