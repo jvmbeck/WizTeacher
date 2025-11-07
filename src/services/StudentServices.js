@@ -18,38 +18,10 @@ import bookStructure from '../data/bookStructure.json'
 import { getAuth } from 'firebase/auth'
 import classServices from './ClassServices.js' // Adjust the path as necessary
 import { useUserStore } from 'src/stores/userStore.js'
+import { findNextClassDate, formatLocalDateKey } from 'src/utils/dateHelpers.js'
 
 const userStore = useUserStore()
 // Ensure userStore is imported and used correctly
-
-/**
- * Returns the next date (Date object) after `today` that matches any weekday
- * in classDays (array of numbers 0..6). Always returns the nearest future occurrence (1..7 days ahead).
- */
-function formatLocalDateKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function findNextClassDate(today, classDays) {
-  // normalize classDays to numbers and unique
-  const daysSet = Array.from(
-    new Set((classDays || []).map(d => Number(d)).filter(n => !Number.isNaN(n) && n >= 0 && n <= 6))
-  );
-
-  if (daysSet.length === 0) return null;
-
-  for (let i = 1; i <= 7; i++) {
-    const candidate = new Date(today);
-    candidate.setDate(today.getDate() + i);
-    const w = candidate.getDay();
-    if (daysSet.includes(w)) {
-      // return a new Date at local midnight to be safe
-      return new Date(candidate.getFullYear(), candidate.getMonth(), candidate.getDate());
-    }
-  }
-
-  return null; // should never happen
-}
 
 const StudentServices = {
   async fetchAllStudents() {
@@ -332,94 +304,108 @@ const StudentServices = {
   },
 
   async unscheduleStudent(classId, studentId) {
-  const classRef = doc(db, "classes", classId);
-  const classSnap = await getDoc(classRef);
+    const classRef = doc(db, 'classes', classId)
+    const classSnap = await getDoc(classRef)
 
-  if (!classSnap.exists()) {
-    return { success: false, reason: "Class not found" };
-  }
+    if (!classSnap.exists()) {
+      return { success: false, reason: 'Class not found' }
+    }
 
-  const classData = classSnap.data();
-  const classDays = classData.classDays || [];
-  const existingUnschedules = classData.unscheduledStudents || {}; // keep field name consistent with your DB
+    const classData = classSnap.data()
+    const classDays = classData.classDays || []
+    const existingUnschedules = classData.unscheduledStudents || {} // keep field name consistent with your DB
 
-  const today = new Date();
-  const nextClassDate = findNextClassDate(today, classDays);
+    const today = new Date()
+    const nextClassDate = findNextClassDate(today, classDays)
 
-  if (!nextClassDate) {
-    return { success: false, reason: "Could not determine next class date" };
-  }
+    if (!nextClassDate) {
+      return { success: false, reason: 'Could not determine next class date' }
+    }
 
-  const dateKey = formatLocalDateKey(nextClassDate);
-  const updatedUnschedules = { ...existingUnschedules };
+    const dateKey = formatLocalDateKey(nextClassDate)
+    const updatedUnschedules = { ...existingUnschedules }
 
-  // Check duplicate only for that next date
-  if (Array.isArray(updatedUnschedules[dateKey]) && updatedUnschedules[dateKey].includes(studentId)) {
-    return { success: false, reason: "Already unscheduled for this date", dateKey };
-  }
+    if (!Array.isArray(updatedUnschedules[dateKey])) {
+      updatedUnschedules[dateKey] = []
+    }
 
-  if (!updatedUnschedules[dateKey]) updatedUnschedules[dateKey] = [studentId];
-  else updatedUnschedules[dateKey].push(studentId);
+    const index = updatedUnschedules[dateKey].indexOf(studentId)
 
-  // Update DB
-  await updateDoc(classRef, { unscheduledStudents: updatedUnschedules });
+    if (index !== -1) {
+      // 🔄 Student already unscheduled — remove them (toggle off)
+      updatedUnschedules[dateKey].splice(index, 1)
 
-  // Add absence record
-  await addDoc(collection(db, "absences"), {
-    studentId,
-    classId,
-    date: dateKey,
-    recordedAt: new Date(),
-    type: "unschedule",
-  });
+      // If the array becomes empty, you can also optionally delete the key:
+      if (updatedUnschedules[dateKey].length === 0) {
+        delete updatedUnschedules[dateKey]
+      }
 
-  console.log(`✅ Unscheduled student ${studentId} for ${dateKey}`);
-  return { success: true, dateKey };
-},
+      await updateDoc(classRef, { unscheduledStudents: updatedUnschedules })
+      console.log(`🗑️ Removed ${studentId} from unscheduled list for ${dateKey}`)
+      return { success: true, action: 'removed', dateKey }
+    } else {
+      // ➕ Student not unscheduled yet — add them
+      updatedUnschedules[dateKey].push(studentId)
+      await updateDoc(classRef, { unscheduledStudents: updatedUnschedules })
+      console.log(`✅ Added ${studentId} to unscheduled list for ${dateKey}`)
+    }
 
-async addReplenishmentStudent(classId, studentId) {
-  const classRef = doc(db, "classes", classId);
-  const classSnap = await getDoc(classRef);
+    // Add absence record
+    await addDoc(collection(db, 'absences'), {
+      studentId,
+      classId,
+      date: dateKey,
+      recordedAt: new Date(),
+      type: 'unschedule',
+      reason: 'Desmarcou aula antecipadamente',
+    })
 
-  if (!classSnap.exists()) {
-    return { success: false, reason: "Class not found" };
-  }
+    console.log(`✅ Unscheduled student ${studentId} for ${dateKey}`)
+    return { success: true, dateKey }
+  },
 
-  const classData = classSnap.data();
-  const classDays = classData.classDays || [];
-  const existingReplenishments = classData.replenishmentStudents || {};
+  async addReplenishmentStudent(classId, studentId) {
+    const classRef = doc(db, 'classes', classId)
+    const classSnap = await getDoc(classRef)
 
-  const today = new Date();
-  const nextClassDate = findNextClassDate(today, classDays);
+    if (!classSnap.exists()) {
+      return { success: false, reason: 'Class not found' }
+    }
 
-  if (!nextClassDate) {
-    return { success: false, reason: "Could not determine next class date" };
-  }
+    const classData = classSnap.data()
+    const classDays = classData.classDays || []
+    const existingReplenishments = classData.replenishmentStudents || {}
 
-  const dateKey = formatLocalDateKey(nextClassDate);
-  const updatedReplenishments = { ...existingReplenishments };
+    const today = new Date()
+    const nextClassDate = findNextClassDate(today, classDays)
 
-  // ✅ Check if the student already exists for this date
-  if (
-    Array.isArray(updatedReplenishments[dateKey]) &&
-    updatedReplenishments[dateKey].includes(studentId)
-  ) {
-    return { success: false, reason: "Already added for this date", dateKey };
-  }
+    if (!nextClassDate) {
+      return { success: false, reason: 'Could not determine next class date' }
+    }
 
-  // ✅ Add student to replenishment list for that date
-  if (!updatedReplenishments[dateKey]) {
-    updatedReplenishments[dateKey] = [studentId];
-  } else {
-    updatedReplenishments[dateKey].push(studentId);
-  }
+    const dateKey = formatLocalDateKey(nextClassDate)
+    const updatedReplenishments = { ...existingReplenishments }
 
-  await updateDoc(classRef, { replenishmentStudents: updatedReplenishments });
+    // ✅ Check if the student already exists for this date
+    if (
+      Array.isArray(updatedReplenishments[dateKey]) &&
+      updatedReplenishments[dateKey].includes(studentId)
+    ) {
+      return { success: false, reason: 'Already added for this date', dateKey }
+    }
 
-  console.log(`✅ Added replenishment student ${studentId} for ${dateKey}`);
-  return { success: true, dateKey };
-}
+    // ✅ Add student to replenishment list for that date
+    if (!updatedReplenishments[dateKey]) {
+      updatedReplenishments[dateKey] = [studentId]
+    } else {
+      updatedReplenishments[dateKey].push(studentId)
+    }
 
+    await updateDoc(classRef, { replenishmentStudents: updatedReplenishments })
+
+    console.log(`✅ Added replenishment student ${studentId} for ${dateKey}`)
+    return { success: true, dateKey }
+  },
 }
 
 export default StudentServices
