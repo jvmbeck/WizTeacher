@@ -49,7 +49,23 @@
         </q-item-section>
 
         <q-item-section>
-          <q-item-label class="text-weight-bold q-mb-sm">{{ student.name }}</q-item-label>
+          <q-item-label class="text-weight-bold q-mb-sm">
+            {{ student.name }}
+          </q-item-label>
+
+          <!-- Add a chip to show pending lessons if any -->
+          <div v-if="student.hasPendingLessons" class="row items-center q-gutter-sm">
+            <q-chip
+              v-for="lesson in student.pendingLessons"
+              :key="lesson.lessonNumber"
+              dense
+              color="blue-grey-8"
+              text-color="white"
+              icon="hourglass_bottom"
+            >
+              {{ lesson.lessonNumber }}
+            </q-chip>
+          </div>
 
           <div class="row items-center q-gutter-sm">
             <q-chip
@@ -153,6 +169,8 @@
     :student-id="selectedStudentId"
     :student-name="selectedStudent?.name"
     :class-id="classId"
+    :initial-book="selectedStudent?.book"
+    :initial-lesson="selectedStudent?.currentLesson"
     @lessonSaved="onLessonSaved"
   />
   <q-dialog v-model="isSaveHomeworkFormOpen" persistent>
@@ -228,7 +246,29 @@ const openLessonForm = (studentId) => {
   const student = students.value.find((s) => s.uid === studentId)
   if (!student) return
 
-  selectedStudent.value = student
+  // Check if student has pending lessons first
+  if (student.hasPendingLessons && student.pendingLessons.length > 0) {
+    console.log('Student has pending lessons: ', student.pendingLessons)
+
+    const pendingLesson = student.pendingLessons[0]
+    const today = new Date().setHours(0, 0, 0, 0) // start of today
+
+    // If the lesson was completed today, ignore pending status
+    if (pendingLesson.completedAt?.toDate()?.setHours(0, 0, 0, 0) === today) {
+      selectedStudent.value = student
+    } else {
+      // This is a pending lesson from a previous class - use it
+      selectedStudent.value = {
+        ...student,
+        book: pendingLesson.book,
+        currentLesson: pendingLesson.lessonNumber,
+      }
+    }
+  } else {
+    // If no pending lessons, use current student info
+    selectedStudent.value = student
+  }
+
   selectedStudentId.value = student.uid
   isSaveLessonFormOpen.value = true
 }
@@ -241,9 +281,14 @@ const handleLessonSaved = async (studentId) => {
   // Find the student in the local array
   const student = students.value.find((s) => s.uid === studentId)
   if (student) {
-    // Do NOT update student.currentLesson here!
+    // Fetch updated pending lessons
+    const pendingLessons = await fetchPendingLessons(student.uid)
 
-    // Always recalculate completion flags
+    // Update the student object with new pending lessons data
+    student.pendingLessons = pendingLessons
+    student.hasPendingLessons = pendingLessons.length > 0
+
+    // Recalculate completion flags
     student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
       student,
       student.book,
@@ -256,6 +301,7 @@ const handleLessonSaved = async (studentId) => {
       nextLesson,
     )
   }
+
   $q.notify({
     type: 'positive',
     message: 'Nota adicionada com sucesso!',
@@ -317,6 +363,16 @@ const markAbsent = async (studentId) => {
     })
 }
 
+const fetchPendingLessons = async (studentId) => {
+  const pendingQuery = query(
+    collection(db, 'lessonsCompleted'),
+    where('studentId', '==', studentId),
+    where('status', '==', 'pending'),
+  )
+  const pendingSnap = await getDocs(pendingQuery)
+  return pendingSnap.docs.map((doc) => doc.data())
+}
+
 const fetchStudentList = async () => {
   // 1️⃣ Fetch class data
   const classSnap = await getDoc(doc(db, 'classes', classId))
@@ -360,11 +416,20 @@ const fetchStudentList = async () => {
   const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
 
   // 6️⃣ Annotate students with absence + replenishment status
-  let annotatedStudents = studentList.map((student) => ({
-    ...student,
-    isAbsentToday: absentStudentIds.includes(student.uid),
-    isReplenishment: replenishmentForDay.includes(student.uid),
-  }))
+  let annotatedStudents = await Promise.all(
+    studentList.map(async (student) => {
+      // Get pending lessons for this student
+      const pendingLessons = await fetchPendingLessons(student.uid)
+
+      return {
+        ...student,
+        isAbsentToday: absentStudentIds.includes(student.uid),
+        isReplenishment: replenishmentForDay.includes(student.uid),
+        pendingLessons: pendingLessons,
+        hasPendingLessons: pendingLessons.length > 0,
+      }
+    }),
+  )
 
   // 7️⃣ Sort students
   annotatedStudents = annotatedStudents.sort((a, b) => {
