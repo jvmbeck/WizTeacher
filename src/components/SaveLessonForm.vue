@@ -10,10 +10,15 @@
         <q-card-section class="card-body">
           <div class="row q-col-gutter-md">
             <div class="col-12 col-md-6">
-              <q-input v-model="lesson.book" label="Book" stack-label />
+              <q-input v-model="lesson.book" label="Book" stack-label :disable="pendingCheck" />
             </div>
             <div class="col-12 col-md-6">
-              <q-input v-model="lesson.lessonNumber" label="Lesson #" stack-label />
+              <q-input
+                v-model="lesson.lessonNumber"
+                label="Lesson #"
+                stack-label
+                :disable="pendingCheck"
+              />
             </div>
           </div>
 
@@ -29,6 +34,7 @@
               class="col-6 col-md-3"
               placeholder="Selecionar nota"
               stack-label
+              :disable="pendingCheck"
             />
           </div>
 
@@ -39,7 +45,15 @@
             class="q-mt-md"
             rows="3"
             stack-label
+            :disable="pendingCheck"
           />
+          <q-toggle
+            label="Pending Check"
+            v-model="pendingCheck"
+            keep-color
+            icon="hourglass_top"
+            size="xl"
+          ></q-toggle>
         </q-card-section>
 
         <q-card-actions align="right" class="q-mt-md">
@@ -66,6 +80,8 @@ const props = defineProps({
   studentName: String,
   classId: String,
 })
+
+const pendingCheck = ref(false)
 
 const emit = defineEmits(['update:modelValue', 'lessonSaved'])
 
@@ -136,6 +152,7 @@ watch(
         notes: '',
       }
       endOfBook.value = false
+      pendingCheck.value = false
     }
   },
 )
@@ -155,16 +172,34 @@ const submitLesson = async () => {
   }
 
   // Save lesson info
-
-  StudentServices.saveLessonForStudent(props.studentId, {
-    ...lesson.value,
-    studentName: props.studentName,
-    classId: props.classId,
-  })
+  if (pendingCheck.value) {
+    StudentServices.savePendingLessonForStudent(props.studentId, {
+      ...lesson.value,
+      studentName: props.studentName,
+      classId: props.classId,
+    })
+  } else {
+    StudentServices.saveLessonForStudent(props.studentId, {
+      ...lesson.value,
+      studentName: props.studentName,
+      classId: props.classId,
+    })
+  }
 
   emit('lessonSaved', { studentId: props.studentId, newLessonNumber: lesson.value.lessonNumber })
   isOpen.value = false
 }
+
+// Clear all grade selects when pendingCheck becomes true
+watch(pendingCheck, (val) => {
+  if (val && lesson.value) {
+    gradeFields.forEach((f) => {
+      if (Object.prototype.hasOwnProperty.call(lesson.value, f.key)) {
+        lesson.value[f.key] = ''
+      }
+    })
+  }
+})
 </script>
 
 <style scoped>
