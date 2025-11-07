@@ -13,6 +13,7 @@ import {
   deleteDoc,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
+import { getNextClassDayKey } from '../utils/dateHelpers.js'
 //import { useUserStore } from '../stores/userStore.js'
 
 const ClassServices = {
@@ -21,7 +22,19 @@ const ClassServices = {
       throw new Error('Missing required fields')
     }
 
-    const className = `${classDays.join('-')} ${schedule} - ${classType}`
+    const dayNamesMap = {
+    0: 'Domingo',
+    1: 'Segunda',
+    2: 'Terça',
+    3: 'Quarta',
+    4: 'Quinta',
+    5: 'Sexta',
+    6: 'Sábado',
+  }
+
+    const dayNames = classDays.map(dayNum => dayNamesMap[dayNum])
+
+    const className = `${dayNames.join('-')} ${schedule} - ${classType}`
 
     const classData = {
       className,
@@ -29,6 +42,8 @@ const ClassServices = {
       schedule,
       teacherId,
       studentIds: [],
+      unschedules: [],
+      replenishments: [],
       classType,
       classDuration,
     }
@@ -154,6 +169,21 @@ const ClassServices = {
       studentIds: arrayRemove(studentId),
     })
   },
-}
 
+  getUnscheduledForNextClass(classInfo) {
+    const nextDateKey = getNextClassDayKey(classInfo)
+    if (!nextDateKey) return []
+
+    const unscheduled = classInfo.unscheduledStudents || {}
+    return unscheduled[nextDateKey] || []
+  },
+
+  getReplenishmentsForNextClass(classInfo) {
+    const nextDateKey = getNextClassDayKey(classInfo)
+    if (!nextDateKey) return []
+
+    const replenishments = classInfo.replenishmentStudents || {}
+    return replenishments[nextDateKey] || []
+  }
+}
 export default ClassServices

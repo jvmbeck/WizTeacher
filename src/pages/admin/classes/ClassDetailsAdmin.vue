@@ -19,7 +19,13 @@
       <q-separator />
 
       <q-btn
-        label="Adicionar Aluno à Turma"
+        label="Adicionar aluno à turma"
+        color="primary"
+        @click="openAddStudentDialog()"
+        class="q-mb-md"
+      />
+      <q-btn
+        label="Adicionar aluno de reposição à turma"
         color="primary"
         @click="openAddStudentDialog()"
         class="q-mb-md"
@@ -28,17 +34,46 @@
       <q-card-section>
         <div class="text-subtitle1">Alunos</div>
         <q-list bordered>
-          <q-item
-            v-for="student in students"
-            :key="student.id"
-            @click="openStudentDialog(student.id)"
-            clickable
-          >
+          <q-item v-for="student in students" :key="student.id">
             <q-item-section>
-              <q-item-label>{{ student.name }}</q-item-label>
+              <q-item-label
+                >{{ student.name }}
+                <q-badge v-if="student.isReplenishment" color="orange" class="q-ml-sm">
+                  Reposição
+                </q-badge>
+
+                <q-badge v-if="student.isUnscheduled" color="grey" class="q-ml-sm">
+                  Desmarcado
+                </q-badge></q-item-label
+              >
               <q-item-label caption>ID: {{ student.id }}</q-item-label>
             </q-item-section>
+
+            <q-item-section side>
+              <div class="row q-gutter-sm">
+                <q-btn
+                  label="Ver detalhes"
+                  flat
+                  color="primary"
+                  icon="visibility"
+                  @click="openStudentDialog(student.id)"
+                >
+                  <q-tooltip>Ver detalhes</q-tooltip>
+                </q-btn>
+
+                <q-btn
+                  label="Desmarcar próxima aula"
+                  flat
+                  color="negative"
+                  icon="event_busy"
+                  @click="StudentServices.unscheduleStudent(classId, student.id)"
+                >
+                  <q-tooltip>Desmarcar próxima aula</q-tooltip>
+                </q-btn>
+              </div>
+            </q-item-section>
           </q-item>
+
           <q-item v-if="students.length === 0">
             <q-item-section>Nenhum aluno encontrado.</q-item-section>
           </q-item>
@@ -122,12 +157,17 @@
     </q-dialog>
     <!-- Add Student Dialog -->
     <q-dialog v-model="isAddDialogOpen">
-      <q-card style="min-width: 300px">
-        <q-card-section>
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center">
           <div class="text-h6">Selecionar Aluno</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
           <q-select
             v-model="selectedStudentId"
-            :options="availableStudents"
+            :options="filteredStudents"
             label="Aluno"
             option-label="label"
             option-value="value"
@@ -135,11 +175,75 @@
             map-options
             dense
             filled
-          />
+            use-input
+            hide-selected
+            fill-input
+            input-debounce="0"
+            @filter="filterStudents"
+          >
+            <template v-slot:no-option>
+              <q-item>
+                <q-item-section class="text-grey"> Nenhum aluno encontrado </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
         </q-card-section>
-        <q-card-actions align="right">
+
+        <q-card-actions align="right" class="q-pa-md">
           <q-btn flat label="Cancelar" v-close-popup />
-          <q-btn flat label="Adicionar" color="primary" @click="addStudentToClass" />
+          <q-btn
+            flat
+            label="Adicionar"
+            color="primary"
+            :disable="!selectedStudentId"
+            @click="addStudentToClass"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+    <!-- Add Replenishment Student Dialog -->
+    <q-dialog v-model="isAddDialogOpen">
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center">
+          <div class="text-h6">Selecionar Aluno</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
+          <q-select
+            v-model="selectedStudentId"
+            :options="filteredStudents"
+            label="Aluno"
+            option-label="label"
+            option-value="value"
+            emit-value
+            map-options
+            dense
+            filled
+            use-input
+            hide-selected
+            fill-input
+            input-debounce="0"
+            @filter="filterStudents"
+          >
+            <template v-slot:no-option>
+              <q-item>
+                <q-item-section class="text-grey"> Nenhum aluno encontrado </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-pa-md">
+          <q-btn flat label="Cancelar" v-close-popup />
+          <q-btn
+            flat
+            label="Adicionar"
+            color="primary"
+            :disable="!selectedStudentId"
+            @click="addReplenishmentStudentToClass()"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -163,6 +267,7 @@ import { db } from 'src/key/configKey.js'
 import dayjs from 'dayjs'
 import ClassServices from 'src/services/ClassServices.js'
 import StudentServices from 'src/services/StudentServices.js'
+import { getNextClassDayKey } from 'src/utils/dateHelpers.js'
 import UpdateClassDialog from 'src/components/UpdateClassDialog.vue'
 
 const route = useRoute()
@@ -183,6 +288,7 @@ const teacherName = ref('')
 const selectedStudentId = ref(null)
 const availableStudents = ref([]) // { label: 'Name', value: 'id' }
 const classInfo = ref(null)
+const filteredStudents = ref([])
 
 function formatDate(timestamp) {
   if (!timestamp) return ''
@@ -252,6 +358,20 @@ const addStudentToClass = async () => {
   }
 }
 
+const addReplenishmentStudentToClass = async () => {
+  if (!selectedStudentId.value) return
+
+  try {
+    await StudentServices.addReplenishmentStudent(classId, selectedStudentId.value)
+    isAddDialogOpen.value = false
+    selectedStudentId.value = null
+    await fetchAvailableStudents()
+    await fetchClassDetails()
+  } catch (err) {
+    console.error('Erro ao adicionar aluno de reposição à turma:', err)
+  }
+}
+
 async function fetchAbsences(studentId) {
   loadingAbsences.value = true
   absences.value = []
@@ -299,17 +419,47 @@ async function fetchTeacherName(teacherId) {
   }
 }
 
-async function fetchStudents(ids) {
-  const promises = ids.map(async (id) => {
+async function fetchStudents() {
+  // 1️⃣ Fetch class info
+  const classSnap = await getDoc(doc(db, 'classes', classId))
+  if (!classSnap.exists()) return
+  classInfo.value = classSnap.data()
+
+  // 2️⃣ Get next class date key
+  const nextClassDay = getNextClassDayKey(classInfo.value)
+  if (!nextClassDay) {
+    console.warn('Could not determine next class day.')
+    return
+  }
+
+  // 3️⃣ Gather all student IDs (main, unscheduled, replenishments)
+  const mainIds = classInfo.value.studentIds || []
+  const unscheduledIds = ClassServices.getUnscheduledForNextClass(classInfo.value)
+  const replenishmentIds = ClassServices.getReplenishmentsForNextClass(classInfo.value)
+
+  // Combine all unique IDs
+  const allIds = Array.from(new Set([...mainIds, ...unscheduledIds, ...replenishmentIds]))
+
+  // 4️⃣ Fetch student documents
+  const promises = allIds.map(async (id) => {
     const studentRef = doc(db, 'students', id)
     const studentSnap = await getDoc(studentRef)
-    return studentSnap.exists() ? { id, ...studentSnap.data() } : null
+    if (!studentSnap.exists()) return null
+
+    const studentData = { id, ...studentSnap.data() }
+
+    // 5️⃣ Annotate with flags
+    studentData.isUnscheduled = unscheduledIds.includes(id)
+    studentData.isReplenishment = replenishmentIds.includes(id)
+
+    return studentData
   })
 
   const results = await Promise.all(promises)
+
+  // 6️⃣ Filter valid and update state
   students.value = results.filter((s) => s !== null)
 }
-
 const fetchAvailableStudents = async () => {
   try {
     const snapshot = await getDocs(collection(db, 'students'))
@@ -347,6 +497,22 @@ const columns = [
 onMounted(() => {
   fetchClassDetails()
 })
+
+function filterStudents(val, update) {
+  if (val === '') {
+    update(() => {
+      filteredStudents.value = availableStudents.value
+    })
+    return
+  }
+
+  update(() => {
+    const needle = val.toLowerCase()
+    filteredStudents.value = availableStudents.value.filter(
+      (student) => student.label.toLowerCase().indexOf(needle) > -1,
+    )
+  })
+}
 </script>
 
 <style scoped>
