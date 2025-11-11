@@ -166,8 +166,8 @@
   <!-- Import the SaveLessonForm component -->
   <SaveLessonForm
     v-model="isSaveLessonFormOpen"
-    :student-id="selectedStudentId"
-    :class-id="classId"
+    :book="selectedStudentBook"
+    :lesson-number="selectedStudentLesson"
     @lessonSaved="handleLessonSaved"
   />
   <q-dialog v-model="isSaveHomeworkFormOpen" persistent>
@@ -205,8 +205,10 @@ const classId = route.params.id
 
 const classInfo = ref(null)
 const students = ref([])
-const selectedStudentId = ref(null)
 const selectedStudent = ref(null)
+const selectedStudentBook = ref(null)
+const selectedStudentLesson = ref(null)
+const selectedStudentId = ref(null)
 const isSaveLessonFormOpen = ref(false)
 const isSaveHomeworkFormOpen = ref(false)
 
@@ -244,32 +246,31 @@ const openLessonForm = (studentId) => {
   if (!student) return
 
   selectedStudent.value = student
-  selectedStudentId.value = student.uid
+  selectedStudentId.value = studentId
+  selectedStudentBook.value = student.book
+  if (student.hasCurrentLessonSaved) {
+    selectedStudentLesson.value = getNextLessonLabel(student.currentLesson, student.book)
+  } else {
+    selectedStudentLesson.value = student.currentLesson
+  }
   isSaveLessonFormOpen.value = true
 }
 
 const handleLessonSaved = async (lessonData) => {
   // Find the student in the local array
-  const student = students.value.find((s) => s.uid === lessonData.studentId)
+  const student = students.value.find((s) => s.uid === selectedStudentId.value)
   if (student) {
     console.log('Saving lesson #: ', lessonData.lesson.lessonNumber)
 
-    await StudentServices.saveLessonForStudent(lessonData.studentId, {
+    await StudentServices.saveLessonForStudent(selectedStudentId.value, {
       ...lessonData.lesson,
       classId: classId,
     })
-    // Recalculate completion flags
-    student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
-      student,
-      student.book,
-      lessonData.lesson.lessonNumber,
-    )
-    const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
-    student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
-      student,
-      student.book,
-      nextLesson,
-    )
+    if (!student.hasCurrentLessonSaved) {
+      student.hasCurrentLessonSaved = true
+    } else {
+      student.hasNextLessonSaved = true
+    }
   } else {
     console.warn('Student not found in local list after lesson save:', lessonData.studentId)
   }
