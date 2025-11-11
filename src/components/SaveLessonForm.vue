@@ -148,6 +148,7 @@ watch(isOpen, (val) => {
 const submitLesson = async () => {
   emit('lessonSaved', {
     lesson: lesson.value,
+    pendingCheck: pendingCheck.value,
   })
   isOpen.value = false
 }
@@ -158,6 +159,7 @@ watch(pendingCheck, (val) => {
     gradeFields.forEach((f) => {
       if (Object.prototype.hasOwnProperty.call(lesson.value, f.key)) {
         lesson.value[f.key] = ''
+        lesson.value.notes = 'Checar próxima aula'
       }
     })
   }

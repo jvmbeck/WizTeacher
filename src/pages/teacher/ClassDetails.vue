@@ -260,16 +260,18 @@ const handleLessonSaved = async (lessonData) => {
   // Find the student in the local array
   const student = students.value.find((s) => s.uid === selectedStudentId.value)
   if (student) {
-    console.log('Saving lesson #: ', lessonData.lesson.lessonNumber)
-
-    await StudentServices.saveLessonForStudent(selectedStudentId.value, {
-      ...lessonData.lesson,
-      classId: classId,
-    })
-    if (!student.hasCurrentLessonSaved) {
-      student.hasCurrentLessonSaved = true
+    if (!lessonData.pendingCheck) {
+      await StudentServices.saveLessonForStudent(selectedStudentId.value, {
+        ...lessonData.lesson,
+        classId: classId,
+      })
+      if (!student.hasCurrentLessonSaved) {
+        student.hasCurrentLessonSaved = true
+      } else {
+        student.hasNextLessonSaved = true
+      }
     } else {
-      student.hasNextLessonSaved = true
+      console.log('Salvando lição pendente')
     }
   } else {
     console.warn('Student not found in local list after lesson save:', lessonData.studentId)
