@@ -253,8 +253,9 @@ const StudentServices = {
         studentId,
         classId,
         date: today,
+        recordedAt: serverTimestamp(),
+        type: 'absence',
         reason: 'Não estava presente na aula',
-        createdAt: serverTimestamp(),
       })
 
       // Write: increment totalAbsences
