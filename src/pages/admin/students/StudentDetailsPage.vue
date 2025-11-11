@@ -37,7 +37,7 @@
             option-value="value"
             map-options
             multiple
-        />
+          />
           <div class="row q-gutter-sm q-pt-md">
             <q-btn label="Salvar" color="positive" @click="saveChanges" />
             <q-btn label="Cancelar" color="negative" flat @click="discardChanges" />
@@ -45,7 +45,7 @@
         </div>
       </q-card-section>
       <q-card-section>
-        <div class="text-h5" style="display:inline-block">Faltas: {{ absences.length }}</div>
+        <div class="text-h5" style="display: inline-block">Faltas: {{ absences.length }}</div>
         <q-btn
           dense
           flat
@@ -60,9 +60,12 @@
         <q-list v-else-if="showAbsences">
           <q-item v-for="absence in absences" :key="absence.id">
             <q-item-section>
-              <q-item-label>{{ absence.date }}</q-item-label>
+              <q-item-label>{{ absence.formattedDate }}</q-item-label>
               <q-item-label caption>
                 Turma: {{ classStore.getClassNameById(absence.classId) }}
+              </q-item-label>
+              <q-item-label caption>
+                Motivo: {{ absence.reason || 'Nenhum motivo fornecido' }}
               </q-item-label>
             </q-item-section>
           </q-item>
@@ -119,7 +122,6 @@ const className = ref('')
 const classOptions = ref([])
 const showAbsences = ref(false)
 
-
 // Fetch Absences
 async function fetchStudentAbsences(studentId) {
   try {
@@ -131,11 +133,21 @@ async function fetchStudentAbsences(studentId) {
     const absencesQuery = query(collection(db, 'absences'), where('studentId', '==', studentId))
     const querySnapshot = await getDocs(absencesQuery)
 
-    absences.value = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
+    absences.value = querySnapshot.docs
+      .map((doc) => {
+        const data = doc.data()
+        const [year, month, day] = data.date.split('-')
 
+        // Format to dd/mm/yy (take last 2 digits of year)
+        const formattedDate = `${day}/${month}/${year.slice(-2)}`
+
+        return {
+          id: doc.id,
+          ...data,
+          formattedDate, // 👈 add this field for display
+        }
+      })
+      .sort((a, b) => b.date.localeCompare(a.date)) // sort newest → oldest
     console.log('Absences:', absences.value)
   } catch (error) {
     console.error('Error fetching absences:', error)
@@ -153,11 +165,13 @@ async function fetchStudentData(studentId) {
       if (studentData) {
         student.value = studentData
 
-      // Fetch class name if classId exists
-      className.value = student.value.classId ? classMap.value[student.value.classId] || student.value.classId : ''
-    } else {
-      console.error('No such student found in Firestore!')
-    }
+        // Fetch class name if classId exists
+        className.value = student.value.classId
+          ? classMap.value[student.value.classId] || student.value.classId
+          : ''
+      } else {
+        console.error('No such student found in Firestore!')
+      }
       const lessonsRef = collection(db, 'students', studentId, 'lessons')
       const lessonSnaps = await getDocs(lessonsRef)
 
@@ -176,7 +190,6 @@ watch(
   async (id) => {
     console.log('ROUTE PARAM studentId:', id)
     if (id) {
-
       await fetchStudentData(id)
       await fetchStudentAbsences(id)
       await classStore.fetchClasses()
@@ -192,12 +205,11 @@ watch(
 )
 
 const saveChanges = async () => {
-
-  studentStore.updateStudent(studentId, student.value)
+  studentStore
+    .updateStudent(studentId, student.value)
     .then(() => {
       isEditing.value = false
       $q.notify({ type: 'positive', message: 'Aluno atualizado com sucesso' })
-
     })
     .catch((error) => {
       console.error('Error updating student:', error)
@@ -215,7 +227,6 @@ onMounted(async () => {
 })
 
 const columns = [
-  { name: 'id', label: 'ID', field: 'id', align: 'left' },
   { name: 'lessonNumber', label: 'Lição', field: 'lessonNumber', align: 'left' },
   {
     name: 'completedAt',
@@ -255,13 +266,13 @@ const columns = [
 }
 
 .student-info p {
-  font-size: 1rem;  /* Increased from default */
+  font-size: 1rem; /* Increased from default */
   margin: 4px 0;
 }
 
 .excel-style-table {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 1.1rem;  /* Added larger font size */
+  font-size: 1.1rem; /* Added larger font size */
 }
 
 .excel-style-table .q-td,
