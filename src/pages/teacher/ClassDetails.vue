@@ -167,11 +167,8 @@
   <SaveLessonForm
     v-model="isSaveLessonFormOpen"
     :student-id="selectedStudentId"
-    :student-name="selectedStudent?.name"
     :class-id="classId"
-    :initial-book="selectedStudent?.book"
-    :initial-lesson="selectedStudent?.currentLesson"
-    @lessonSaved="onLessonSaved"
+    @lessonSaved="handleLessonSaved"
   />
   <q-dialog v-model="isSaveHomeworkFormOpen" persistent>
     <HwGradingForm @close="isSaveHomeworkFormOpen = false" :students="students" />
@@ -246,53 +243,26 @@ const openLessonForm = (studentId) => {
   const student = students.value.find((s) => s.uid === studentId)
   if (!student) return
 
-  // Check if student has pending lessons first
-  if (student.hasPendingLessons && student.pendingLessons.length > 0) {
-    console.log('Student has pending lessons: ', student.pendingLessons)
-
-    const pendingLesson = student.pendingLessons[0]
-    const today = new Date().setHours(0, 0, 0, 0) // start of today
-
-    // If the lesson was completed today, ignore pending status
-    if (pendingLesson.completedAt?.toDate()?.setHours(0, 0, 0, 0) === today) {
-      selectedStudent.value = student
-    } else {
-      // This is a pending lesson from a previous class - use it
-      selectedStudent.value = {
-        ...student,
-        book: pendingLesson.book,
-        currentLesson: pendingLesson.lessonNumber,
-      }
-    }
-  } else {
-    // If no pending lessons, use current student info
-    selectedStudent.value = student
-  }
-
+  selectedStudent.value = student
   selectedStudentId.value = student.uid
   isSaveLessonFormOpen.value = true
 }
 
-const onLessonSaved = ({ studentId }) => {
-  handleLessonSaved(studentId)
-}
-
-const handleLessonSaved = async (studentId) => {
+const handleLessonSaved = async (lessonData) => {
   // Find the student in the local array
-  const student = students.value.find((s) => s.uid === studentId)
+  const student = students.value.find((s) => s.uid === lessonData.studentId)
   if (student) {
-    // Fetch updated pending lessons
-    const pendingLessons = await fetchPendingLessons(student.uid)
+    console.log('Saving lesson #: ', lessonData.lesson.lessonNumber)
 
-    // Update the student object with new pending lessons data
-    student.pendingLessons = pendingLessons
-    student.hasPendingLessons = pendingLessons.length > 0
-
+    await StudentServices.saveLessonForStudent(lessonData.studentId, {
+      ...lessonData.lesson,
+      classId: classId,
+    })
     // Recalculate completion flags
     student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
       student,
       student.book,
-      student.currentLesson,
+      lessonData.lesson.lessonNumber,
     )
     const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
     student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
@@ -300,13 +270,9 @@ const handleLessonSaved = async (studentId) => {
       student.book,
       nextLesson,
     )
+  } else {
+    console.warn('Student not found in local list after lesson save:', lessonData.studentId)
   }
-
-  $q.notify({
-    type: 'positive',
-    message: 'Nota adicionada com sucesso!',
-    icon: 'check_circle',
-  })
 }
 const markAbsent = async (studentId) => {
   if (!studentId) return
@@ -459,22 +425,6 @@ const fetchStudentList = async () => {
   })
 
   students.value = annotatedStudents
-
-  // 8️⃣ Fetch lesson completion info
-  for (const student of annotatedStudents) {
-    student.hasCurrentLessonSaved = await StudentServices.fetchLessonCompletion(
-      student,
-      student.book,
-      student.currentLesson,
-    )
-
-    const nextLesson = getNextLessonLabel(student.currentLesson, student.book)
-    student.hasNextLessonSaved = await StudentServices.fetchLessonCompletion(
-      student,
-      student.book,
-      nextLesson,
-    )
-  }
 }
 
 const getNextLessonLabel = (currentLesson, book) => {
