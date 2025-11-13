@@ -33,3 +33,7 @@ export function getNextClassDayKey(classInfo) {
   const nextDate = findNextClassDate(new Date(), classInfo.classDays || [])
   return nextDate ? nextDate.toISOString().split('T')[0] : null
 }
+
+export function isToday(timestamp) {
+  return timestamp.toDate().toDateString() === new Date().toDateString()
+}
