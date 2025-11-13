@@ -178,16 +178,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  setDoc,
-  deleteDoc,
-} from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '../../key/configKey.js'
 import StudentServices from '../../services/StudentServices.js'
 import classServices from '../../services/ClassServices.js'
@@ -340,39 +331,8 @@ const markAbsent = async (studentId) => {
   })
     .onOk(async () => {
       try {
-        const today = new Date().toISOString().split('T')[0]
-        const absenceDocId = `${studentId}_${classId}_${today}`
-        const absenceRef = doc(db, 'absences', absenceDocId)
-        const absenceSnap = await getDoc(absenceRef)
-
-        if (absenceSnap.exists()) {
-          // unmark absence
-          await deleteDoc(absenceRef)
-          $q.notify({ type: 'positive', message: 'Ausência removida.' })
-        } else {
-          // mark absence
-          await setDoc(absenceRef, {
-            studentId,
-            classId,
-            date: today,
-          })
-          $q.notify({ type: 'positive', message: 'Aluno marcado como ausente.' })
-        }
-
-        // Re-query today's absences for this class and update students in-place
-        const todayQuery = query(
-          collection(db, 'absences'),
-          where('classId', '==', classId),
-          where('date', '==', today),
-        )
-        const absSnap = await getDocs(todayQuery)
-        const absentStudentIds = absSnap.docs.map((d) => d.data().studentId)
-
-        // Update local students array without refetching everything
-        students.value = students.value.map((s) => ({
-          ...s,
-          isAbsentToday: absentStudentIds.includes(s.uid),
-        }))
+        await StudentServices.markStudentAbsent({ studentId, classId, type: 'absence' })
+        await updateClassAbsences()
       } catch (err) {
         console.error('Error toggling absence:', err)
         $q.notify({ type: 'negative', message: 'Erro ao atualizar ausência.' })
@@ -381,6 +341,16 @@ const markAbsent = async (studentId) => {
     .onCancel(() => {
       // cancelled
     })
+}
+
+const updateClassAbsences = async () => {
+  const absenceData = await StudentServices.queryAbsences(classId)
+
+  const absentStudentIds = absenceData.map((d) => d.studentId)
+  students.value = students.value.map((s) => ({
+    ...s,
+    isAbsentToday: absentStudentIds.includes(s.uid),
+  }))
 }
 
 const fetchPendingLessons = async (studentId) => {
@@ -425,17 +395,7 @@ const fetchStudentList = async () => {
   // 4️⃣ Fetch students by final list
   const studentList = await StudentServices.fetchStudentsByIds(effectiveStudentIds)
 
-  // 5️⃣ Fetch today's absences
-  const today = new Date().toISOString().split('T')[0]
-  const absencesQuery = query(
-    collection(db, 'absences'),
-    where('classId', '==', classId),
-    where('date', '==', today),
-  )
-  const absencesSnap = await getDocs(absencesQuery)
-  const absentStudentIds = absencesSnap.docs.map((doc) => doc.data().studentId)
-
-  // 6️⃣ Annotate students with absence + replenishment status
+  // 6️⃣ Annotate students with replenishment status
   let annotatedStudents = await Promise.all(
     studentList.map(async (student) => {
       // Get pending lessons for this student
@@ -443,7 +403,6 @@ const fetchStudentList = async () => {
 
       return {
         ...student,
-        isAbsentToday: absentStudentIds.includes(student.uid),
         isReplenishment: replenishmentForDay.includes(student.uid),
         pendingLessons: pendingLessons,
         hasPendingLessons: pendingLessons.length > 0,
@@ -479,6 +438,7 @@ const fetchStudentList = async () => {
   })
 
   students.value = annotatedStudents
+  await updateClassAbsences()
 }
 
 const getNextLessonLabel = (currentLesson, book) => {
