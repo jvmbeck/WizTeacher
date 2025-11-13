@@ -196,7 +196,7 @@ import BookStructure from '../../data/bookStructure.json'
 import { useQuasar } from 'quasar'
 import emailServices from 'src/services/EmailServices.js'
 import HwGradingForm from 'src/components/HwGradingForm.vue'
-import { getNextClassDayKey } from 'src/utils/dateHelpers.js'
+import { getNextClassDayKey, isToday } from 'src/utils/dateHelpers.js'
 
 const $q = useQuasar()
 
@@ -248,11 +248,28 @@ const openLessonForm = (studentId) => {
   selectedStudent.value = student
   selectedStudentId.value = studentId
   selectedStudentBook.value = student.book
-  if (student.hasCurrentLessonSaved) {
-    selectedStudentLesson.value = getNextLessonLabel(student.currentLesson, student.book)
+  //check whether or not student has pending lessons
+  //if not, set selectedStudentLesson to currentLesson or next lesson label
+  if (!student.pendingLessons || student.pendingLessons.length === 0) {
+    if (student.hasCurrentLessonSaved) {
+      selectedStudentLesson.value = getNextLessonLabel(student.currentLesson, student.book)
+    } else {
+      selectedStudentLesson.value = student.currentLesson
+    }
   } else {
-    selectedStudentLesson.value = student.currentLesson
+    //check if first pending lesson was completed today
+    //if yes, skip to next lesson
+    if (
+      isToday(student.pendingLessons[0].completedAt) &&
+      student.pendingLessons[0].classId === classId
+    ) {
+      selectedStudentLesson.value = student.currentLesson
+    } else {
+      selectedStudentLesson.value = student.pendingLessons[0].lessonNumber
+    }
+    //if yes, set selectedStudentLesson to the first pending lesson
   }
+
   isSaveLessonFormOpen.value = true
 }
 
@@ -261,17 +278,51 @@ const handleLessonSaved = async (lessonData) => {
   const student = students.value.find((s) => s.uid === selectedStudentId.value)
   if (student) {
     if (!lessonData.pendingCheck) {
-      await StudentServices.saveLessonForStudent(selectedStudentId.value, {
-        ...lessonData.lesson,
-        classId: classId,
-      })
+      //if not pending, send lesson info with pendingCheck false
+      //if saved successfully, returns a true and shows success notification
+      if (
+        await StudentServices.saveLessonForStudent(selectedStudentId.value, {
+          ...lessonData.lesson,
+          pendingCheck: false,
+          classId: classId,
+        })
+      ) {
+        $q.notify({ type: 'positive', message: 'Lição salva com sucesso!' })
+      } else {
+        $q.notify({ type: 'negative', message: 'Falha ao salvar a lição.' })
+      }
+    } else {
+      //if pending, send lesson info with pendingCheck true
+      //if saved successfully, returns a true and shows success notification
+      if (
+        await StudentServices.saveLessonForStudent(selectedStudentId.value, {
+          ...lessonData.lesson,
+          pendingCheck: true,
+          classId: classId,
+        })
+      ) {
+        $q.notify({ type: 'positive', message: 'Lição salva como pendente!' })
+      } else {
+        $q.notify({ type: 'negative', message: 'Falha ao salvar a lição pendente.' })
+        return
+      }
+    }
+    if (
+      student.pendingLessons &&
+      student.pendingLessons.length > 0 &&
+      student.pendingLessons.some((pl) => pl.lessonNumber === lessonData.lesson.lessonNumber)
+    ) {
+      // Remove the saved pending lesson from the local pendingLessons array
+      student.pendingLessons = student.pendingLessons.filter(
+        (pl) => pl.lessonNumber !== lessonData.lesson.lessonNumber,
+      )
+      student.hasPendingLessons = student.pendingLessons.length > 0
+    } else {
       if (!student.hasCurrentLessonSaved) {
         student.hasCurrentLessonSaved = true
       } else {
         student.hasNextLessonSaved = true
       }
-    } else {
-      console.log('Salvando lição pendente')
     }
   } else {
     console.warn('Student not found in local list after lesson save:', lessonData.studentId)
