@@ -2,16 +2,15 @@ import {
   getDoc,
   getDocs,
   doc,
-  setDoc,
   serverTimestamp,
   updateDoc,
   addDoc,
   collection,
   arrayUnion,
+  arrayRemove,
   deleteDoc,
   runTransaction,
   writeBatch,
-  arrayRemove,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
@@ -89,113 +88,66 @@ const StudentServices = {
     const auth = getAuth()
     const user = auth.currentUser
 
-    if (!user) {
-      console.warn('No user signed in')
-      return
-    }
+    let fullLessonInfo = {}
 
     const lessonRef = doc(db, 'students', studentId, 'lessons', lessonId)
     const lessonSnap = await getDoc(lessonRef)
 
-    let fullLessonInfo = {
-      ...lessonData,
-      checkedAt: serverTimestamp(),
-      status: 'completed',
-      studentId,
-      teacherId: user.uid,
-      teacherName: userStore.userInfo?.name || 'Unknown Teacher',
-    }
+    if (lessonData.pendingCheck == false) {
+      fullLessonInfo = {
+        ...lessonData,
+        checkedAt: serverTimestamp(),
+        status: 'completed',
+        studentId,
+        teacherId: user.uid,
+        teacherName: userStore.userInfo?.name || 'Unknown Teacher',
+      }
 
-    if (lessonSnap.exists()) {
-      // Preserve the existing completedAt timestamp
-      const existingData = lessonSnap.data()
-      if (existingData.completedAt) {
-        fullLessonInfo.completedAt = existingData.completedAt
+      if (lessonSnap.exists()) {
+        // Preserve the existing completedAt timestamp
+        const existingData = lessonSnap.data()
+        if (existingData.completedAt) {
+          fullLessonInfo.completedAt = existingData.completedAt
+        }
+      } else {
+        // Only add new completedAt for new lessons
+        fullLessonInfo.completedAt = serverTimestamp()
       }
     } else {
-      // Only add new completedAt for new lessons
-      fullLessonInfo.completedAt = serverTimestamp()
+      fullLessonInfo = {
+        ...lessonData,
+        studentId,
+        completedAt: serverTimestamp(),
+        checkedAt: 'pending',
+        teacherId: user.uid,
+        teacherName: userStore.userInfo?.name || 'Unknown Teacher',
+        status: 'pending',
+      }
     }
 
-    try {
-      await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
-    } catch (error) {
-      console.error('❌ StudentDoc write error:', error.code, error.message)
-    }
-    // Save to student's personal lessons
+    const batch = writeBatch(db)
 
-    // Save to global lessonsCompleted
-    try {
-      await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
-    } catch (error) {
-      console.error('❌ lessonsCompleted write error:', error.code, error.message)
-    }
+    const studentLessonRef = doc(db, 'students', studentId, 'lessons', lessonId)
+    const globalLessonRef = doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`)
 
-    if (lessonNumber === studentData.currentLesson) {
+    batch.set(studentLessonRef, fullLessonInfo)
+    batch.set(globalLessonRef, fullLessonInfo)
+
+    if (lessonNumber === currentLesson) {
       const { nextLesson } = this.getNextLesson(currentLesson, book)
-      console.log(
-        `Lesson ${lessonNumber} already marked as completed for student ${studentId} and updating to ${nextLesson}.`,
-      )
-      // Update student's current lesson if it's not the same as the completed lesson
-      await updateDoc(studentRef, {
+      batch.update(studentRef, {
         currentLesson: nextLesson,
       })
     }
-  },
 
-  async savePendingLessonForStudent(studentId, lessonData) {
-    const studentRef = doc(db, 'students', studentId)
-    const studentSnap = await getDoc(studentRef)
-    if (!studentSnap.exists()) throw new Error('Student not found')
-
-    const studentData = studentSnap.data()
-    const book = lessonData.book || studentData.book
-    const currentLesson = studentData.currentLesson
-
-    const lessonNumber = lessonData.lessonNumber
-    const lessonId = `${book}_${lessonNumber}`
-
-    const auth = getAuth()
-    const user = auth.currentUser
-
-    if (!user) {
-      console.warn('No user signed in')
-      return
-    }
-
-    const fullLessonInfo = {
-      ...lessonData,
-      studentId,
-      completedAt: serverTimestamp(),
-      checkedAt: 'pending',
-      teacherId: user.uid,
-      teacherName: userStore.userInfo?.name || 'Unknown Teacher',
-      status: 'pending',
-    }
-
+    //commit
     try {
-      await setDoc(doc(db, 'students', studentId, 'lessons', lessonId), fullLessonInfo)
+      await batch.commit()
+      //returns true so page can show success notification
+      return true
     } catch (error) {
-      console.error('❌ StudentDoc write error:', error.code, error.message)
-    }
-    // Save to student's personal lessons
-
-    // Save to global lessonsCompleted
-    try {
-      await setDoc(doc(db, 'lessonsCompleted', `${lessonId}_${studentId}`), fullLessonInfo)
-    } catch (error) {
-      console.error('❌ lessonsCompleted write error:', error.code, error.message)
-    }
-
-    if (lessonNumber === studentData.currentLesson) {
-      const { nextLesson } = this.getNextLesson(currentLesson, book)
-      console.log(
-        `Lesson ${lessonNumber} already marked as completed for student ${studentId} and updating to ${nextLesson}.`,
-      )
-      // Update student's current lesson if it's not the same as the completed lesson
-      await updateDoc(studentRef, {
-        currentLesson: nextLesson,
-      })
+      console.error('❌ Batch write error:', error.code, error.message)
+      return false
     }
   },
 
