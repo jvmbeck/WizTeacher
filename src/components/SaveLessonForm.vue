@@ -70,16 +70,11 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import StudentServices from '../services/StudentServices'
 import books from '../data/bookStructure.json'
-import { getAuth } from 'firebase/auth'
 
 const props = defineProps({
-  studentId: String,
-  studentName: String,
-  classId: String,
-  initialBook: String, // Add this
-  initialLesson: String, // Add this
+  book: String,
+  lessonNumber: String,
   modelValue: Boolean,
 })
 
@@ -90,8 +85,8 @@ const emit = defineEmits(['update:modelValue', 'lessonSaved'])
 const endOfBook = ref(false)
 const isOpen = ref(props.modelValue)
 const lesson = ref({
-  book: props.initialBook || '',
-  lessonNumber: props.initialLesson || '',
+  book: '',
+  lessonNumber: '',
   notes: '',
 })
 
@@ -100,7 +95,6 @@ const gradeOptions = [
   { label: 'MB', value: 'MB' },
   { label: 'B', value: 'B' },
   { label: 'R', value: 'R' },
-  { label: '', value: ' ' },
 ]
 
 const gradeFields = [
@@ -116,25 +110,18 @@ watch(
   async (val) => {
     isOpen.value = val
 
-    if (val && props.studentId) {
-      const studentDoc = await StudentServices.fetchStudentById(props.studentId)
-      if (!studentDoc) return
-
-      // Use props.initialBook instead of studentDoc.book
-      const book = props.initialBook || studentDoc.book || ''
-      const bookLessons = books[book]
+    if (val) {
+      lesson.value.book = props.book || ''
+      lesson.value.lessonNumber = props.lessonNumber || ''
+      const bookLessons = books[lesson.value.book]
 
       if (!bookLessons) {
-        console.warn(`Book "${book}" not found in books structure`)
+        console.warn(`Book "${lesson.value.book}" not found in books structure`)
         lesson.value = null
         endOfBook.value = true
         return
       }
-
-      // Use props.initialLesson instead of studentDoc.currentLesson
-      const lessonNumber = props.initialLesson || studentDoc.currentLesson
-
-      const currentIndex = bookLessons.indexOf(String(lessonNumber))
+      const currentIndex = bookLessons.indexOf(String(lesson.value.lessonNumber))
 
       // If lessonNumber is not in list OR it's beyond the last index => book finished
       const isEndOfBook = currentIndex === -1 || currentIndex >= bookLessons.length
@@ -145,14 +132,12 @@ watch(
         return
       }
 
-      // Otherwise, load lesson for grading using provided values
-      lesson.value = {
-        book,
-        lessonNumber: String(lessonNumber),
-        notes: '',
-      }
       endOfBook.value = false
       pendingCheck.value = false
+      for (const field of gradeFields) {
+        lesson.value[field.key] = ''
+      }
+      lesson.value.notes = ''
     }
   },
 )
@@ -161,32 +146,10 @@ watch(isOpen, (val) => {
   emit('update:modelValue', val)
 })
 const submitLesson = async () => {
-  if (!props.studentId) return
-
-  const auth = getAuth()
-  const user = auth.currentUser
-
-  if (!user) {
-    console.warn('User not authenticated')
-    return
-  }
-
-  // Save lesson info
-  if (pendingCheck.value) {
-    StudentServices.savePendingLessonForStudent(props.studentId, {
-      ...lesson.value,
-      studentName: props.studentName,
-      classId: props.classId,
-    })
-  } else {
-    StudentServices.saveLessonForStudent(props.studentId, {
-      ...lesson.value,
-      studentName: props.studentName,
-      classId: props.classId,
-    })
-  }
-
-  emit('lessonSaved', { studentId: props.studentId, newLessonNumber: lesson.value.lessonNumber })
+  emit('lessonSaved', {
+    lesson: lesson.value,
+    pendingCheck: pendingCheck.value,
+  })
   isOpen.value = false
 }
 
@@ -196,6 +159,7 @@ watch(pendingCheck, (val) => {
     gradeFields.forEach((f) => {
       if (Object.prototype.hasOwnProperty.call(lesson.value, f.key)) {
         lesson.value[f.key] = ''
+        lesson.value.notes = 'Checar próxima aula'
       }
     })
   }
