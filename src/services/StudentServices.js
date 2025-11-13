@@ -11,13 +11,15 @@ import {
   deleteDoc,
   runTransaction,
   writeBatch,
+  where,
+  query,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
 import { getAuth } from 'firebase/auth'
 import classServices from './ClassServices.js' // Adjust the path as necessary
 import { useUserStore } from 'src/stores/userStore.js'
-import { findNextClassDate, formatLocalDateKey } from 'src/utils/dateHelpers.js'
+import { findNextClassDate, formatLocalDateKey, todaysDate } from 'src/utils/dateHelpers.js'
 
 const userStore = useUserStore()
 // Ensure userStore is imported and used correctly
@@ -177,44 +179,60 @@ const StudentServices = {
     return lessonSnap.exists()
   },
 
-  async markStudentAbsent(studentId, classId) {
-    const today = new Date().toISOString().split('T')[0]
-    const absenceId = `${studentId}_${classId}_${today}`
+  async markStudentAbsent(absenceData) {
+    const date = todaysDate()
+    const stuId = absenceData.studentId
+    const classId = absenceData.classId
+    const absenceId = `${stuId}_${classId}_${date}`
+
     const absenceRef = doc(db, 'absences', absenceId)
-    const studentRef = doc(db, 'students', studentId)
+    const studentRef = doc(db, 'students', absenceData.studentId)
+    const studentSnap = await getDoc(studentRef)
+
+    const currentAbsences = studentSnap.data().totalAbsences || 0
 
     // transaction ensures absence marking and counter update happen together.
-
     await runTransaction(db, async (transaction) => {
       // Check if absence already exists
       const absenceDoc = await transaction.get(absenceRef)
       if (absenceDoc.exists()) {
-        throw new Error('Aluno já foi marcado como ausente hoje.')
+        transaction.delete(absenceRef)
+        // Write: decrement totalAbsences
+        transaction.update(studentRef, {
+          totalAbsences: currentAbsences - 1,
+        })
+        console.log('Student already marked as absent, removing record')
+      } else {
+        // Write: mark the absence
+        console.log('Marking student as absent')
+
+        transaction.set(absenceRef, {
+          studentId: stuId,
+          classId,
+          date: date,
+          recordedAt: serverTimestamp(),
+          type: 'absence',
+          reason: 'Não estava presente na aula',
+        })
+        // Write: increment totalAbsences
+        transaction.update(studentRef, {
+          totalAbsences: currentAbsences + 1,
+        })
       }
-
-      // Read student document
-      const studentDoc = await transaction.get(studentRef)
-      if (!studentDoc.exists()) {
-        throw new Error('Aluno não encontrado.')
-      }
-
-      const currentAbsences = studentDoc.data().totalAbsences || 0
-
-      // Write: mark the absence
-      transaction.set(absenceRef, {
-        studentId,
-        classId,
-        date: today,
-        recordedAt: serverTimestamp(),
-        type: 'absence',
-        reason: 'Não estava presente na aula',
-      })
-
-      // Write: increment totalAbsences
-      transaction.update(studentRef, {
-        totalAbsences: currentAbsences + 1,
-      })
     })
+  },
+
+  async queryAbsences(classId) {
+    const today = todaysDate()
+
+    const todayQuery = query(
+      collection(db, 'absences'),
+      where('classId', '==', classId),
+      where('date', '==', today),
+    )
+
+    const absSnap = await getDocs(todayQuery)
+    return absSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
   },
 
   async createStudent(studentData) {
