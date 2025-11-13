@@ -37,3 +37,9 @@ export function getNextClassDayKey(classInfo) {
 export function isToday(timestamp) {
   return timestamp.toDate().toDateString() === new Date().toDateString()
 }
+
+export function todaysDate() {
+  const today = new Date()
+  const dateOnly = today.toLocaleDateString('en-CA')
+  return dateOnly
+}
