@@ -348,6 +348,9 @@ const StudentServices = {
   async unscheduleStudent(classId, studentId) {
     const classRef = doc(db, 'classes', classId)
     const classSnap = await getDoc(classRef)
+    const studentRef = doc(db, 'students', studentId)
+
+    const studentData = this.fetchStudentById(studentId)
 
     if (!classSnap.exists()) {
       return { success: false, reason: 'Class not found' }
@@ -371,7 +374,13 @@ const StudentServices = {
       updatedUnschedules[dateKey] = []
     }
 
+    const batch = writeBatch(db)
+
     const index = updatedUnschedules[dateKey].indexOf(studentId)
+
+    const globalAbsencesRef = doc(db, 'absences', `${studentId}_${classId}_${dateKey}`)
+
+    let isAddRecord = false
 
     if (index !== -1) {
       // 🔄 Student already unscheduled — remove them (toggle off)
@@ -381,29 +390,40 @@ const StudentServices = {
       if (updatedUnschedules[dateKey].length === 0) {
         delete updatedUnschedules[dateKey]
       }
-
-      await updateDoc(classRef, { unscheduledStudents: updatedUnschedules })
-      console.log(`🗑️ Removed ${studentId} from unscheduled list for ${dateKey}`)
-      return { success: true, action: 'removed', dateKey }
+      batch.update(classRef, {
+        unscheduledStudents: updatedUnschedules,
+      })
+      batch.update(studentRef, {
+        totalAbsences: studentData.currentAbsences - 1,
+      })
+      batch.delete(globalAbsencesRef)
     } else {
       // ➕ Student not unscheduled yet — add them
       updatedUnschedules[dateKey].push(studentId)
-      await updateDoc(classRef, { unscheduledStudents: updatedUnschedules })
-      console.log(`✅ Added ${studentId} to unscheduled list for ${dateKey}`)
+      batch.update(classRef, {
+        unscheduledStudents: updatedUnschedules,
+      })
+      batch.update(studentRef, {
+        totalAbsences: studentData.currentAbsences + 1,
+      })
+      batch.set(globalAbsencesRef, {
+        studentId,
+        classId,
+        date: dateKey,
+        recordedAt: serverTimestamp(),
+        type: 'unschedule',
+        reason: 'Aula desmarcada',
+      })
+      isAddRecord = true
     }
 
-    // Add absence record
-    await addDoc(collection(db, 'absences'), {
-      studentId,
-      classId,
-      date: dateKey,
-      recordedAt: new Date(),
-      type: 'unschedule',
-      reason: 'Desmarcou aula antecipadamente',
-    })
-
-    console.log(`✅ Unscheduled student ${studentId} for ${dateKey}`)
-    return { success: true, dateKey }
+    try {
+      await batch.commit()
+      return { success: true, date: dateKey, isAddRecord: isAddRecord }
+    } catch (error) {
+      console.warn(error)
+      return { success: false, dateKey }
+    }
   },
 
   async addReplenishmentStudent(classId, studentId) {
