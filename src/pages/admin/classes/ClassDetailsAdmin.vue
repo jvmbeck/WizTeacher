@@ -62,11 +62,22 @@
                 </q-btn>
 
                 <q-btn
+                  v-if="!student.isReplenishment"
                   label="Desmarcar próxima aula"
                   flat
                   color="negative"
                   icon="event_busy"
                   @click="addUnscheduledStudentToClass(classId, student.id)"
+                >
+                  <q-tooltip>Desmarcar próxima aula</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="student.isReplenishment"
+                  label="Remover reposição"
+                  flat
+                  color="negative"
+                  icon="event_busy"
+                  @click="addReplenishmentStudentToClass(classId, student.id)"
                 >
                   <q-tooltip>Desmarcar próxima aula</q-tooltip>
                 </q-btn>
@@ -168,7 +179,7 @@
             label="Adicionar"
             color="primary"
             :disable="!selectedStudentId"
-            @click="addReplenishmentStudentToClass()"
+            @click="addReplenishmentStudentToClass(classId, selectedStudentId)"
           />
         </q-card-actions>
       </q-card>
@@ -289,15 +300,15 @@ const addStudentToClass = async () => {
   }
 }
 
-const addUnscheduledStudentToClass = async (classId, studentId) => {
-  const result = await StudentServices.unscheduleStudent(classId, studentId)
+const addUnscheduledStudentToClass = async () => {
+  const result = await StudentServices.unscheduleStudent(classId, selectedStudentId.value)
 
   if (!result.success) {
     return $q.notify({ type: 'negative', message: 'Erro ao desmarcar aluno' })
   }
 
   const date = dayjs(result.date).format('DD/MM/YYYY')
-  const s = students.value.find((x) => x.id === studentId)
+  const s = students.value.find((x) => x.id === selectedStudentId.value)
 
   if (s) s.isUnscheduled = result.isAddRecord
 
@@ -309,18 +320,24 @@ const addUnscheduledStudentToClass = async (classId, studentId) => {
   })
 }
 
-const addReplenishmentStudentToClass = async () => {
-  if (!selectedStudentId.value) return
+const addReplenishmentStudentToClass = async (classId, studentId) => {
+  const result = await StudentServices.addReplenishmentStudent(classId, studentId)
 
-  try {
-    await StudentServices.addReplenishmentStudent(classId, selectedStudentId.value)
-    isAddDialogOpen.value = false
-    selectedStudentId.value = null
-    await fetchAvailableStudents()
-    await fetchClassDetails()
-  } catch (err) {
-    console.error('Erro ao adicionar aluno de reposição à turma:', err)
+  if (!result.success) {
+    return $q.notify({ type: 'negative', message: 'Erro ao atualizar reposição' })
   }
+
+  const date = dayjs(result.date).format('DD/MM/YYYY')
+
+  await fetchStudents()
+
+  $q.notify({
+    type: 'positive',
+    message: result.isAddRecord
+      ? `Reposição marcada para data ${date}`
+      : `Reposição desmarcada para data ${date}`,
+  })
+  isAddReplenishmentDialogOpen.value = false
 }
 
 async function fetchLessons(studentId) {
@@ -410,16 +427,12 @@ const fetchAvailableStudents = async () => {
       ...doc.data(),
     }))
 
-    console.log('All students:', allStudents)
-
     const filtered = allStudents.filter((student) => !student.classId)
 
     availableStudents.value = filtered.map((student) => ({
       label: student.name,
       value: student.id,
     }))
-
-    console.log('Available students:', availableStudents.value)
   } catch (error) {
     console.error('Failed to fetch available students:', error)
   }
