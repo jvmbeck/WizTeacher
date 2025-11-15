@@ -425,48 +425,49 @@ const StudentServices = {
       return { success: false, dateKey }
     }
   },
-
   async addReplenishmentStudent(classId, studentId) {
     const classRef = doc(db, 'classes', classId)
-    const classSnap = await getDoc(classRef)
 
-    if (!classSnap.exists()) {
-      return { success: false, reason: 'Class not found' }
+    try {
+      const result = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(classRef)
+        if (!snap.exists()) throw { success: false, reason: 'Class not found' }
+
+        const data = snap.data()
+
+        const today = new Date()
+        const nextClassDate = findNextClassDate(today, data.classDays || [])
+        if (!nextClassDate) throw { success: false, reason: 'No next class date' }
+
+        const dateKey = formatLocalDateKey(nextClassDate)
+
+        // Current array for this date
+        const existing = data.replenishmentStudents?.[dateKey] || []
+
+        const alreadyInList = existing.includes(studentId)
+        let isAddRecord = false
+        if (alreadyInList) {
+          // REMOVE
+          tx.update(classRef, {
+            [`replenishmentStudents.${dateKey}`]: existing.filter((id) => id !== studentId),
+          })
+          return { success: true, isAddRecord, date: dateKey }
+        } else {
+          // ADD
+          isAddRecord = true
+          tx.update(classRef, {
+            [`replenishmentStudents.${dateKey}`]: [...existing, studentId],
+          })
+          return { success: true, isAddRecord, date: dateKey }
+        }
+      })
+
+      return result
+    } catch (err) {
+      console.log(err)
+
+      return err
     }
-
-    const classData = classSnap.data()
-    const classDays = classData.classDays || []
-    const existingReplenishments = classData.replenishmentStudents || {}
-
-    const today = new Date()
-    const nextClassDate = findNextClassDate(today, classDays)
-
-    if (!nextClassDate) {
-      return { success: false, reason: 'Could not determine next class date' }
-    }
-
-    const dateKey = formatLocalDateKey(nextClassDate)
-    const updatedReplenishments = { ...existingReplenishments }
-
-    // ✅ Check if the student already exists for this date
-    if (
-      Array.isArray(updatedReplenishments[dateKey]) &&
-      updatedReplenishments[dateKey].includes(studentId)
-    ) {
-      return { success: false, reason: 'Already added for this date', dateKey }
-    }
-
-    // ✅ Add student to replenishment list for that date
-    if (!updatedReplenishments[dateKey]) {
-      updatedReplenishments[dateKey] = [studentId]
-    } else {
-      updatedReplenishments[dateKey].push(studentId)
-    }
-
-    await updateDoc(classRef, { replenishmentStudents: updatedReplenishments })
-
-    console.log(`✅ Added replenishment student ${studentId} for ${dateKey}`)
-    return { success: true, dateKey }
   },
 }
 
