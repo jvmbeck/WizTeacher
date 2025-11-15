@@ -291,16 +291,24 @@ const addStudentToClass = async () => {
 
 const addUnscheduledStudentToClass = async (classId, studentId) => {
   const result = await StudentServices.unscheduleStudent(classId, studentId)
-  const date = dayjs(result.date).format('DD/MM/YYYY')
 
-  if (result.success && result.isAddRecord) {
-    $q.notify({ type: 'positive', message: `Aluno desmarcado para data ${date}` })
-  } else if (result.success && !result.isAddRecord) {
-    $q.notify({ type: 'positive', message: `Desmarcação removida para data ${date}` })
-  } else {
-    $q.notify({ type: 'negative', message: 'Erro ao desmarcar aluno' })
+  if (!result.success) {
+    return $q.notify({ type: 'negative', message: 'Erro ao desmarcar aluno' })
   }
+
+  const date = dayjs(result.date).format('DD/MM/YYYY')
+  const s = students.value.find((x) => x.id === studentId)
+
+  if (s) s.isUnscheduled = result.isAddRecord
+
+  $q.notify({
+    type: 'positive',
+    message: result.isAddRecord
+      ? `Aluno desmarcado para data ${date}`
+      : `Desmarcação removida para data ${date}`,
+  })
 }
+
 const addReplenishmentStudentToClass = async () => {
   if (!selectedStudentId.value) return
 
