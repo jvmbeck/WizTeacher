@@ -300,15 +300,15 @@ const addStudentToClass = async () => {
   }
 }
 
-const addUnscheduledStudentToClass = async () => {
-  const result = await StudentServices.unscheduleStudent(classId, selectedStudentId.value)
+const addUnscheduledStudentToClass = async (classId, studentId) => {
+  const result = await StudentServices.unscheduleStudent(classId, studentId)
 
   if (!result.success) {
     return $q.notify({ type: 'negative', message: 'Erro ao desmarcar aluno' })
   }
 
   const date = dayjs(result.date).format('DD/MM/YYYY')
-  const s = students.value.find((x) => x.id === selectedStudentId.value)
+  const s = students.value.find((x) => x.id === studentId)
 
   if (s) s.isUnscheduled = result.isAddRecord
 
