@@ -62,11 +62,22 @@
                 </q-btn>
 
                 <q-btn
+                  v-if="!student.isReplenishment"
                   label="Desmarcar próxima aula"
                   flat
                   color="negative"
                   icon="event_busy"
-                  @click="StudentServices.unscheduleStudent(classId, student.id)"
+                  @click="addUnscheduledStudentToClass(classId, student.id)"
+                >
+                  <q-tooltip>Desmarcar próxima aula</q-tooltip>
+                </q-btn>
+                <q-btn
+                  v-if="student.isReplenishment"
+                  label="Remover reposição"
+                  flat
+                  color="negative"
+                  icon="event_busy"
+                  @click="addReplenishmentStudentToClass(classId, student.id)"
                 >
                   <q-tooltip>Desmarcar próxima aula</q-tooltip>
                 </q-btn>
@@ -81,80 +92,6 @@
       </q-card-section>
     </q-card>
 
-    <!-- Student Details Dialog -->
-    <q-dialog v-model="isDialogOpen" persistent>
-      <q-card class="student-details-card">
-        <q-card-section>
-          <div class="text-h6">Detalhes do Aluno</div>
-        </q-card-section>
-
-        <q-btn
-          icon="close"
-          color="negative"
-          flat
-          dense
-          @click="removeStudentFromClass(classId, selectedStudent.id)"
-          title="Remover aluno"
-        />
-
-        <q-card-section v-if="selectedStudent">
-          <p><strong>Nome:</strong> {{ selectedStudent.name }}</p>
-          <p><strong>Livro:</strong> {{ selectedStudent.book }}</p>
-          <p><strong>Lição Atual:</strong> {{ selectedStudent.currentLesson }}</p>
-          <p v-if="classInfo"><strong>Nome da Turma:</strong> {{ classInfo.className }}</p>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section>
-          <div class="text-subtitle1 q-mb-sm">Faltas</div>
-          <q-spinner v-if="loadingAbsences" />
-          <q-list v-else>
-            <q-item v-for="absence in absences" :key="absence.id">
-              <q-item-section>
-                <q-item-label>ID da turma: {{ absence.classId }}</q-item-label>
-                <q-item-label>Data: {{ formatDate(absence.markedAt) }}</q-item-label>
-                <q-item-label caption> Motivo: {{ absence.reason }} </q-item-label>
-              </q-item-section>
-            </q-item>
-            <q-item v-if="absences.length === 0">
-              <q-item-section>Nenhuma falta registrada.</q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-
-        <q-separator />
-
-        <q-card-section>
-          <div class="text-subtitle1 q-mb-sm">Lições</div>
-          <q-spinner v-if="loadingLessons" />
-          <q-table
-            :rows="lessons"
-            :columns="columns"
-            row-key="id"
-            class="my-table"
-            flat
-            bordered
-            dense
-            :rows-per-page-options="[0]"
-            separator="cell"
-          >
-            <template v-slot:body-cell-completedAt="props">
-              <q-td :props="props">
-                {{ formatDate(props.row.completedAt) }}
-              </q-td>
-            </template>
-          </q-table>
-          <q-item v-if="lessons.length === 0">
-            <q-item-section>Nenhuma lição registrada.</q-item-section>
-          </q-item>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Fechar" color="primary" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
     <!-- Add Student Dialog -->
     <q-dialog v-model="isAddDialogOpen">
       <q-card style="min-width: 500px">
@@ -242,7 +179,7 @@
             label="Adicionar"
             color="primary"
             :disable="!selectedStudentId"
-            @click="addReplenishmentStudentToClass()"
+            @click="addReplenishmentStudentToClass(classId, selectedStudentId)"
           />
         </q-card-actions>
       </q-card>
@@ -279,9 +216,7 @@ const isAddDialogOpen = ref(false)
 const isAddReplenishmentDialogOpen = ref(false)
 const isDialogOpen = ref(false)
 const selectedStudent = ref(null)
-const absences = ref([])
 const lessons = ref([])
-const loadingAbsences = ref(false)
 const loadingLessons = ref(false)
 const classData = ref(null)
 const students = ref([])
@@ -291,20 +226,20 @@ const availableStudents = ref([]) // { label: 'Name', value: 'id' }
 const classInfo = ref(null)
 const filteredStudents = ref([])
 
+/*
 function formatDate(timestamp) {
   if (!timestamp) return ''
   if (timestamp.toDate) {
     return dayjs(timestamp.toDate()).format('DD/MM/YYYY')
   }
 }
-
+*/
 async function openStudentDialog(studentId) {
   const docRef = doc(db, 'students', studentId)
   const docSnap = await getDoc(docRef)
   if (docSnap.exists()) {
     selectedStudent.value = docSnap.data()
     selectedStudent.value.id = docSnap.id // Add the document ID to the student object
-    await fetchAbsences(studentId)
     await fetchLessons(studentId)
     classInfo.value = await ClassServices.fetchClassById(classId)
     isDialogOpen.value = true
@@ -324,7 +259,7 @@ function openAddReplenishmentStudentDialog() {
   isAddReplenishmentDialogOpen.value = true
   selectedStudentId.value = null
 }
-
+/*
 async function removeStudentFromClass(classId, studentId) {
   $q.dialog({
     title: 'Remover aluno',
@@ -349,7 +284,7 @@ async function removeStudentFromClass(classId, studentId) {
       })
     }
   })
-}
+}*/
 
 const addStudentToClass = async () => {
   if (!selectedStudentId.value) return
@@ -365,28 +300,44 @@ const addStudentToClass = async () => {
   }
 }
 
-const addReplenishmentStudentToClass = async () => {
-  if (!selectedStudentId.value) return
+const addUnscheduledStudentToClass = async (classId, studentId) => {
+  const result = await StudentServices.unscheduleStudent(classId, studentId)
 
-  try {
-    await StudentServices.addReplenishmentStudent(classId, selectedStudentId.value)
-    isAddDialogOpen.value = false
-    selectedStudentId.value = null
-    await fetchAvailableStudents()
-    await fetchClassDetails()
-  } catch (err) {
-    console.error('Erro ao adicionar aluno de reposição à turma:', err)
+  if (!result.success) {
+    return $q.notify({ type: 'negative', message: 'Erro ao desmarcar aluno' })
   }
+
+  const date = dayjs(result.date).format('DD/MM/YYYY')
+  const s = students.value.find((x) => x.id === studentId)
+
+  if (s) s.isUnscheduled = result.isAddRecord
+
+  $q.notify({
+    type: 'positive',
+    message: result.isAddRecord
+      ? `Aluno desmarcado para data ${date}`
+      : `Desmarcação removida para data ${date}`,
+  })
 }
 
-async function fetchAbsences(studentId) {
-  loadingAbsences.value = true
-  absences.value = []
-  const absRef = collection(db, 'absences')
-  const q = query(absRef, where('studentId', '==', studentId))
-  const querySnap = await getDocs(q)
-  absences.value = querySnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-  loadingAbsences.value = false
+const addReplenishmentStudentToClass = async (classId, studentId) => {
+  const result = await StudentServices.addReplenishmentStudent(classId, studentId)
+
+  if (!result.success) {
+    return $q.notify({ type: 'negative', message: 'Erro ao atualizar reposição' })
+  }
+
+  const date = dayjs(result.date).format('DD/MM/YYYY')
+
+  await fetchStudents()
+
+  $q.notify({
+    type: 'positive',
+    message: result.isAddRecord
+      ? `Reposição marcada para data ${date}`
+      : `Reposição desmarcada para data ${date}`,
+  })
+  isAddReplenishmentDialogOpen.value = false
 }
 
 async function fetchLessons(studentId) {
@@ -476,30 +427,16 @@ const fetchAvailableStudents = async () => {
       ...doc.data(),
     }))
 
-    console.log('All students:', allStudents)
-
     const filtered = allStudents.filter((student) => !student.classId)
 
     availableStudents.value = filtered.map((student) => ({
       label: student.name,
       value: student.id,
     }))
-
-    console.log('Available students:', availableStudents.value)
   } catch (error) {
     console.error('Failed to fetch available students:', error)
   }
 }
-const columns = [
-  { name: 'lessonNumber', label: 'Lição', align: 'left', field: 'lessonNumber' },
-  { name: 'completedAt', label: 'Data', align: 'left', field: 'completedAt' },
-  { name: 'notes', label: 'Anotações', align: 'left', field: 'notes' },
-  { name: 'gradeF', label: 'F', align: 'center', field: 'gradeF' },
-  { name: 'gradeA', label: 'A', align: 'center', field: 'gradeA' },
-  { name: 'gradeL', label: 'L', align: 'center', field: 'gradeL' },
-  { name: 'gradeE', label: 'E', align: 'center', field: 'gradeE' },
-  { name: 'teacherName', label: 'Professor', align: 'left', field: 'teacherName' },
-]
 
 onMounted(() => {
   fetchClassDetails()

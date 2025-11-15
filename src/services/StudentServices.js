@@ -11,13 +11,15 @@ import {
   deleteDoc,
   runTransaction,
   writeBatch,
+  where,
+  query,
 } from 'firebase/firestore'
 import { db } from '../key/configKey.js'
 import bookStructure from '../data/bookStructure.json'
 import { getAuth } from 'firebase/auth'
 import classServices from './ClassServices.js' // Adjust the path as necessary
 import { useUserStore } from 'src/stores/userStore.js'
-import { findNextClassDate, formatLocalDateKey } from 'src/utils/dateHelpers.js'
+import { findNextClassDate, formatLocalDateKey, todaysDate } from 'src/utils/dateHelpers.js'
 
 const userStore = useUserStore()
 // Ensure userStore is imported and used correctly
@@ -177,44 +179,60 @@ const StudentServices = {
     return lessonSnap.exists()
   },
 
-  async markStudentAbsent(studentId, classId) {
-    const today = new Date().toISOString().split('T')[0]
-    const absenceId = `${studentId}_${classId}_${today}`
+  async markStudentAbsent(absenceData) {
+    const date = todaysDate()
+    const stuId = absenceData.studentId
+    const classId = absenceData.classId
+    const absenceId = `${stuId}_${classId}_${date}`
+
     const absenceRef = doc(db, 'absences', absenceId)
-    const studentRef = doc(db, 'students', studentId)
+    const studentRef = doc(db, 'students', absenceData.studentId)
+    const studentSnap = await getDoc(studentRef)
+
+    const currentAbsences = studentSnap.data().totalAbsences || 0
 
     // transaction ensures absence marking and counter update happen together.
-
     await runTransaction(db, async (transaction) => {
       // Check if absence already exists
       const absenceDoc = await transaction.get(absenceRef)
       if (absenceDoc.exists()) {
-        throw new Error('Aluno já foi marcado como ausente hoje.')
+        transaction.delete(absenceRef)
+        // Write: decrement totalAbsences
+        transaction.update(studentRef, {
+          totalAbsences: currentAbsences - 1,
+        })
+        console.log('Student already marked as absent, removing record')
+      } else {
+        // Write: mark the absence
+        console.log('Marking student as absent')
+
+        transaction.set(absenceRef, {
+          studentId: stuId,
+          classId,
+          date: date,
+          recordedAt: serverTimestamp(),
+          type: 'absence',
+          reason: 'Não estava presente na aula',
+        })
+        // Write: increment totalAbsences
+        transaction.update(studentRef, {
+          totalAbsences: currentAbsences + 1,
+        })
       }
-
-      // Read student document
-      const studentDoc = await transaction.get(studentRef)
-      if (!studentDoc.exists()) {
-        throw new Error('Aluno não encontrado.')
-      }
-
-      const currentAbsences = studentDoc.data().totalAbsences || 0
-
-      // Write: mark the absence
-      transaction.set(absenceRef, {
-        studentId,
-        classId,
-        date: today,
-        recordedAt: serverTimestamp(),
-        type: 'absence',
-        reason: 'Não estava presente na aula',
-      })
-
-      // Write: increment totalAbsences
-      transaction.update(studentRef, {
-        totalAbsences: currentAbsences + 1,
-      })
     })
+  },
+
+  async queryAbsences(classId) {
+    const today = todaysDate()
+
+    const todayQuery = query(
+      collection(db, 'absences'),
+      where('classId', '==', classId),
+      where('date', '==', today),
+    )
+
+    const absSnap = await getDocs(todayQuery)
+    return absSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
   },
 
   async createStudent(studentData) {
@@ -330,6 +348,9 @@ const StudentServices = {
   async unscheduleStudent(classId, studentId) {
     const classRef = doc(db, 'classes', classId)
     const classSnap = await getDoc(classRef)
+    const studentRef = doc(db, 'students', studentId)
+
+    const studentData = this.fetchStudentById(studentId)
 
     if (!classSnap.exists()) {
       return { success: false, reason: 'Class not found' }
@@ -353,7 +374,13 @@ const StudentServices = {
       updatedUnschedules[dateKey] = []
     }
 
+    const batch = writeBatch(db)
+
     const index = updatedUnschedules[dateKey].indexOf(studentId)
+
+    const globalAbsencesRef = doc(db, 'absences', `${studentId}_${classId}_${dateKey}`)
+
+    let isAddRecord = false
 
     if (index !== -1) {
       // 🔄 Student already unscheduled — remove them (toggle off)
@@ -363,72 +390,84 @@ const StudentServices = {
       if (updatedUnschedules[dateKey].length === 0) {
         delete updatedUnschedules[dateKey]
       }
-
-      await updateDoc(classRef, { unscheduledStudents: updatedUnschedules })
-      console.log(`🗑️ Removed ${studentId} from unscheduled list for ${dateKey}`)
-      return { success: true, action: 'removed', dateKey }
+      batch.update(classRef, {
+        unscheduledStudents: updatedUnschedules,
+      })
+      batch.update(studentRef, {
+        totalAbsences: studentData.currentAbsences - 1,
+      })
+      batch.delete(globalAbsencesRef)
     } else {
       // ➕ Student not unscheduled yet — add them
       updatedUnschedules[dateKey].push(studentId)
-      await updateDoc(classRef, { unscheduledStudents: updatedUnschedules })
-      console.log(`✅ Added ${studentId} to unscheduled list for ${dateKey}`)
+      batch.update(classRef, {
+        unscheduledStudents: updatedUnschedules,
+      })
+      batch.update(studentRef, {
+        totalAbsences: studentData.currentAbsences + 1,
+      })
+      batch.set(globalAbsencesRef, {
+        studentId,
+        classId,
+        date: dateKey,
+        recordedAt: serverTimestamp(),
+        type: 'unschedule',
+        reason: 'Aula desmarcada',
+      })
+      isAddRecord = true
     }
 
-    // Add absence record
-    await addDoc(collection(db, 'absences'), {
-      studentId,
-      classId,
-      date: dateKey,
-      recordedAt: new Date(),
-      type: 'unschedule',
-      reason: 'Desmarcou aula antecipadamente',
-    })
-
-    console.log(`✅ Unscheduled student ${studentId} for ${dateKey}`)
-    return { success: true, dateKey }
+    try {
+      await batch.commit()
+      return { success: true, date: dateKey, isAddRecord: isAddRecord }
+    } catch (error) {
+      console.warn(error)
+      return { success: false, dateKey }
+    }
   },
-
   async addReplenishmentStudent(classId, studentId) {
     const classRef = doc(db, 'classes', classId)
-    const classSnap = await getDoc(classRef)
 
-    if (!classSnap.exists()) {
-      return { success: false, reason: 'Class not found' }
+    try {
+      const result = await runTransaction(db, async (tx) => {
+        const snap = await tx.get(classRef)
+        if (!snap.exists()) throw { success: false, reason: 'Class not found' }
+
+        const data = snap.data()
+
+        const today = new Date()
+        const nextClassDate = findNextClassDate(today, data.classDays || [])
+        if (!nextClassDate) throw { success: false, reason: 'No next class date' }
+
+        const dateKey = formatLocalDateKey(nextClassDate)
+
+        // Current array for this date
+        const existing = data.replenishmentStudents?.[dateKey] || []
+
+        const alreadyInList = existing.includes(studentId)
+        let isAddRecord = false
+        if (alreadyInList) {
+          // REMOVE
+          tx.update(classRef, {
+            [`replenishmentStudents.${dateKey}`]: existing.filter((id) => id !== studentId),
+          })
+          return { success: true, isAddRecord, date: dateKey }
+        } else {
+          // ADD
+          isAddRecord = true
+          tx.update(classRef, {
+            [`replenishmentStudents.${dateKey}`]: [...existing, studentId],
+          })
+          return { success: true, isAddRecord, date: dateKey }
+        }
+      })
+
+      return result
+    } catch (err) {
+      console.log(err)
+
+      return err
     }
-
-    const classData = classSnap.data()
-    const classDays = classData.classDays || []
-    const existingReplenishments = classData.replenishmentStudents || {}
-
-    const today = new Date()
-    const nextClassDate = findNextClassDate(today, classDays)
-
-    if (!nextClassDate) {
-      return { success: false, reason: 'Could not determine next class date' }
-    }
-
-    const dateKey = formatLocalDateKey(nextClassDate)
-    const updatedReplenishments = { ...existingReplenishments }
-
-    // ✅ Check if the student already exists for this date
-    if (
-      Array.isArray(updatedReplenishments[dateKey]) &&
-      updatedReplenishments[dateKey].includes(studentId)
-    ) {
-      return { success: false, reason: 'Already added for this date', dateKey }
-    }
-
-    // ✅ Add student to replenishment list for that date
-    if (!updatedReplenishments[dateKey]) {
-      updatedReplenishments[dateKey] = [studentId]
-    } else {
-      updatedReplenishments[dateKey].push(studentId)
-    }
-
-    await updateDoc(classRef, { replenishmentStudents: updatedReplenishments })
-
-    console.log(`✅ Added replenishment student ${studentId} for ${dateKey}`)
-    return { success: true, dateKey }
   },
 }
 
